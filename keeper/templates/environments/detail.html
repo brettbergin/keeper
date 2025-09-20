@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+
+{% block title %}{{ environment.display_name }} - Environments - Keeper{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('environments.index') }}">Environments</a></li>
+                <li class="breadcrumb-item active">{{ environment.display_name }}</li>
+            </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1>
+                    {% if environment.icon %}
+                    <i class="{{ environment.icon }} me-2"></i>
+                    {% endif %}
+                    {{ environment.display_name }}
+                    <span class="badge bg-{{ 'success' if environment.is_active else 'secondary' }} ms-2">
+                        {{ 'Active' if environment.is_active else 'Inactive' }}
+                    </span>
+                </h1>
+                <p class="text-muted">{{ environment.description or 'No description provided' }}</p>
+            </div>
+            <div class="btn-group">
+                <a href="{{ url_for('environments.edit', id=environment.id) }}" class="btn btn-outline-primary">
+                    <i class="fas fa-edit me-1"></i>Edit
+                </a>
+                <a href="{{ url_for('secrets.index', environment=environment.id) }}" class="btn btn-primary">
+                    <i class="fas fa-key me-1"></i>View Secrets
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Environment Statistics -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-2">Total Secrets</h6>
+                        <h3 class="mb-0">{{ stats.secret_count }}</h3>
+                    </div>
+                    <div class="text-primary">
+                        <i class="fas fa-key fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-2">Synced</h6>
+                        <h3 class="mb-0 text-success">{{ stats.synced_count }}</h3>
+                    </div>
+                    <div class="text-success">
+                        <i class="fas fa-check fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-2">Pending Sync</h6>
+                        <h3 class="mb-0 text-warning">{{ stats.pending_count }}</h3>
+                    </div>
+                    <div class="text-warning">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-2">Failed</h6>
+                        <h3 class="mb-0 text-danger">{{ stats.failed_count }}</h3>
+                    </div>
+                    <div class="text-danger">
+                        <i class="fas fa-times fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Environment Configuration -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Configuration</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Basic Information</h6>
+                        <table class="table table-borderless table-sm">
+                            <tr>
+                                <td class="text-muted">Name:</td>
+                                <td><code>{{ environment.name }}</code></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Display Name:</td>
+                                <td>{{ environment.display_name }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Status:</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if environment.is_active else 'secondary' }}">
+                                        {{ 'Active' if environment.is_active else 'Inactive' }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Created:</td>
+                                <td>{{ environment.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            </tr>
+                            {% if environment.updated_at %}
+                            <tr>
+                                <td class="text-muted">Updated:</td>
+                                <td>{{ environment.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Synchronization</h6>
+                        <table class="table table-borderless table-sm">
+                            <tr>
+                                <td class="text-muted">AWS Sync:</td>
+                                <td>
+                                    {% if environment.aws_sync_enabled %}
+                                    <span class="badge bg-success"><i class="fas fa-check me-1"></i>Enabled</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary"><i class="fas fa-times me-1"></i>Disabled</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Vault Sync:</td>
+                                <td>
+                                    {% if environment.vault_sync_enabled %}
+                                    <span class="badge bg-success"><i class="fas fa-check me-1"></i>Enabled</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary"><i class="fas fa-times me-1"></i>Disabled</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% if environment.vault_path_prefix %}
+                            <tr>
+                                <td class="text-muted">Vault Path:</td>
+                                <td><code>{{ environment.vault_path_prefix }}</code></td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <td class="text-muted">Encryption:</td>
+                                <td><span class="badge bg-info">AES-256-GCM</span></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('secrets.create', environment=environment.id) }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Create Secret
+                    </a>
+                    <a href="{{ url_for('secrets.index', environment=environment.id) }}" class="btn btn-outline-primary">
+                        <i class="fas fa-list me-2"></i>Browse Secrets
+                    </a>
+                    {% if environment.is_active %}
+                    <button class="btn btn-outline-success" onclick="syncEnvironment()">
+                        <i class="fas fa-sync me-2"></i>Sync All Secrets
+                    </button>
+                    {% endif %}
+                    <a href="{{ url_for('environments.edit', id=environment.id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-edit me-2"></i>Edit Environment
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sync Status -->
+        {% if environment.is_active and (environment.aws_sync_enabled or environment.vault_sync_enabled) %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-heartbeat me-2"></i>Sync Health</h6>
+            </div>
+            <div class="card-body">
+                {% if environment.aws_sync_enabled %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>AWS Secrets Manager</span>
+                    <span class="badge bg-success"><i class="fas fa-check"></i></span>
+                </div>
+                {% endif %}
+                {% if environment.vault_sync_enabled %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>HashiCorp Vault</span>
+                    <span class="badge bg-success"><i class="fas fa-check"></i></span>
+                </div>
+                {% endif %}
+                <div class="text-center mt-3">
+                    <small class="text-muted">Last checked: {{ now.strftime('%H:%M:%S') }}</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Secrets -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-key me-2"></i>Recent Secrets</h5>
+                <a href="{{ url_for('secrets.index', environment=environment.id) }}" class="btn btn-outline-primary btn-sm">
+                    View All
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_secrets %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Sync Status</th>
+                                <th>Last Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for secret in recent_secrets %}
+                            <tr>
+                                <td>
+                                    <strong>{{ secret.name }}</strong>
+                                    {% if secret.description %}
+                                    <br><small class="text-muted">{{ secret.description[:50] }}{% if secret.description|length > 50 %}...{% endif %}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ secret.secret_type.value.replace('_', ' ').title() }}</span>
+                                </td>
+                                <td>
+                                    {% if secret.sync_status == 'synced' %}
+                                    <span class="badge bg-success">Synced</span>
+                                    {% elif secret.sync_status == 'pending' %}
+                                    <span class="badge bg-warning">Pending</span>
+                                    {% elif secret.sync_status == 'error' %}
+                                    <span class="badge bg-danger">Error</span>
+                                    {% elif secret.sync_status == 'out_of_sync' %}
+                                    <span class="badge bg-warning">Out of Sync</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ secret.sync_status.title() }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ secret.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('secrets.detail', id=secret.id) }}" class="btn btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('secrets.edit', id=secret.id) }}" class="btn btn-outline-secondary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-key fa-3x text-muted mb-3"></i>
+                    <h6>No Secrets Found</h6>
+                    <p class="text-muted">Start by creating your first secret in this environment</p>
+                    <a href="{{ url_for('secrets.create', environment=environment.id) }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Create Secret
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function syncEnvironment() {
+    if (confirm('This will sync all secrets in this environment to the configured backends. Continue?')) {
+        // Show loading state
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Syncing...';
+        btn.disabled = true;
+        
+        // Make sync request
+        fetch(`{{ url_for('environments.sync', id=environment.id) }}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Sync failed: ' + data.message);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        })
+        .catch(error => {
+            alert('Sync failed: ' + error.message);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel - Keeper{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1><i class="fas fa-cogs me-2"></i>Admin Panel</h1>
+        <p class="text-muted">System administration and management</p>
+    </div>
+</div>
+
+<!-- System Overview -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-2">Total Users</h6>
+                        <h3 class="mb-0">{{ system_stats.total_users }}</h3>
+                    </div>
+                    <div class="text-primary">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <i class="fas fa-user-shield"></i> {{ system_stats.admin_users }} admins
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-2">Total Secrets</h6>
+                        <h3 class="mb-0">{{ system_stats.total_secrets }}</h3>
+                    </div>
+                    <div class="text-success">
+                        <i class="fas fa-key fa-2x"></i>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-success">
+                        <i class="fas fa-sync"></i> {{ system_stats.synced_secrets }} synced
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-2">Environments</h6>
+                        <h3 class="mb-0">{{ system_stats.total_environments }}</h3>
+                    </div>
+                    <div class="text-info">
+                        <i class="fas fa-server fa-2x"></i>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-info">
+                        <i class="fas fa-check"></i> {{ system_stats.active_environments }} active
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-2">Audit Logs</h6>
+                        <h3 class="mb-0">{{ system_stats.audit_logs_today }}</h3>
+                    </div>
+                    <div class="text-warning">
+                        <i class="fas fa-clipboard-list fa-2x"></i>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <i class="fas fa-calendar-day"></i> Today's activities
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Admin Navigation -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Administration Tasks</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-users me-2 text-primary"></i>User Management</h6>
+                        <ul class="list-unstyled mb-4">
+                            <li><a href="{{ url_for('admin.users') }}" class="text-decoration-none">
+                                <i class="fas fa-list me-1"></i>View All Users
+                            </a></li>
+                            <li><a href="{{ url_for('admin.create_user') }}" class="text-decoration-none">
+                                <i class="fas fa-user-plus me-1"></i>Create New User
+                            </a></li>
+                            <li><a href="{{ url_for('admin.users') }}" class="text-decoration-none">
+                                <i class="fas fa-user-shield me-1"></i>Manage Roles
+                            </a></li>
+                        </ul>
+                        
+                        <h6><i class="fas fa-clipboard-list me-2 text-warning"></i>Audit & Logging</h6>
+                        <ul class="list-unstyled mb-4">
+                            <li><a href="{{ url_for('admin.audit_logs') }}" class="text-decoration-none">
+                                <i class="fas fa-eye me-1"></i>View Audit Logs
+                            </a></li>
+                            <li><a href="{{ url_for('admin.audit_logs') }}" class="text-decoration-none">
+                                <i class="fas fa-chart-bar me-1"></i>Activity Reports
+                            </a></li>
+                            <li><span class="text-muted">
+                                <i class="fas fa-download me-1"></i>Export Logs (Coming Soon)
+                            </span></li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-cog me-2 text-success"></i>System Configuration</h6>
+                        <ul class="list-unstyled mb-4">
+                            <li><a href="{{ url_for('admin.system_info') }}" class="text-decoration-none">
+                                <i class="fas fa-info-circle me-1"></i>System Information
+                            </a></li>
+                            <li><span class="text-muted">
+                                <i class="fas fa-database me-1"></i>Database Backup (Coming Soon)
+                            </span></li>
+                            <li><span class="text-muted">
+                                <i class="fas fa-tools me-1"></i>Maintenance Mode (Coming Soon)
+                            </span></li>
+                        </ul>
+                        
+                        <h6><i class="fas fa-sync me-2 text-info"></i>Synchronization</h6>
+                        <ul class="list-unstyled mb-4">
+                            <li><span class="text-muted">
+                                <i class="fas fa-heartbeat me-1"></i>Sync Status (Coming Soon)
+                            </span></li>
+                            <li><span class="text-muted">
+                                <i class="fas fa-server me-1"></i>Backend Configuration (Coming Soon)
+                            </span></li>
+                            <li><span class="text-muted">
+                                <i class="fas fa-sync-alt me-1"></i>Force Full Sync (Coming Soon)
+                            </span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- System Health -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-heartbeat me-2"></i>System Health</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span>Database</span>
+                        <span class="badge bg-success">Healthy</span>
+                    </div>
+                    <div class="progress" style="height: 4px;">
+                        <div class="progress-bar bg-success" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span>AWS Connection</span>
+                        <span class="badge bg-success">Connected</span>
+                    </div>
+                    <div class="progress" style="height: 4px;">
+                        <div class="progress-bar bg-success" style="width: 95%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span>Vault Connection</span>
+                        <span class="badge bg-success">Connected</span>
+                    </div>
+                    <div class="progress" style="height: 4px;">
+                        <div class="progress-bar bg-success" style="width: 98%"></div>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <small class="text-muted">Last checked: {{ now.strftime('%H:%M:%S') }}</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary" onclick="refreshStats()">
+                        <i class="fas fa-sync me-2"></i>Refresh Stats
+                    </button>
+                    <a href="{{ url_for('admin.audit_logs') }}" class="btn btn-outline-warning">
+                        <i class="fas fa-eye me-2"></i>View Recent Activity
+                    </a>
+                    <a href="{{ url_for('admin.system_info') }}" class="btn btn-outline-info">
+                        <i class="fas fa-info me-2"></i>System Info
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Admin Activity -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Admin Activity</h5>
+                <a href="{{ url_for('admin.audit_logs') }}" class="btn btn-outline-primary btn-sm">
+                    View All
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_admin_activity %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Target</th>
+                                <th>Result</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for activity in recent_admin_activity %}
+                            <tr>
+                                <td>{{ activity.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td>
+                                    <strong>{{ activity.username }}</strong>
+                                    {% if activity.is_admin %}
+                                    <span class="badge bg-warning">Admin</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if activity.action.value == 'create' %}
+                                    <span class="badge bg-success">{{ activity.action.value.title() }}</span>
+                                    {% elif activity.action.value == 'update' %}
+                                    <span class="badge bg-primary">{{ activity.action.value.title() }}</span>
+                                    {% elif activity.action.value == 'delete' %}
+                                    <span class="badge bg-danger">{{ activity.action.value.title() }}</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ activity.action.value.title() }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ activity.secret_name or activity.details[:30] + '...' if activity.details and activity.details|length > 30 else activity.details }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if activity.result.value == 'success' else 'danger' }}">
+                                        {{ activity.result.value.title() }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                    <h6>No Recent Admin Activity</h6>
+                    <p class="text-muted">Administrative actions will appear here</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshStats() {
+    location.reload();
+}
+
+// runFullSync function removed - feature not yet implemented
+</script>
+{% endblock %}

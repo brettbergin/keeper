@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Keeper{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h1>
+            {% if session.user_id %}
+            <a href="{{ url_for('secrets.create') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>New Secret
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ total_secrets }}</h4>
+                        <p class="card-text">Total Secrets</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-lock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ total_environments }}</h4>
+                        <p class="card-text">Environments</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-server fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ total_users }}</h4>
+                        <p class="card-text">Active Users</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ out_of_sync|length }}</h4>
+                        <p class="card-text">Out of Sync</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Environment Statistics -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-server me-2"></i>Secrets by Environment</h5>
+            </div>
+            <div class="card-body">
+                {% if env_stats %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Environment</th>
+                                    <th>Secrets</th>
+                                    <th>Type</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in env_stats %}
+                                <tr>
+                                    <td>
+                                        {% if stat.environment.color_code %}
+                                        <span class="badge" style="background-color: {{ stat.environment.color_code }};">
+                                            {% if stat.environment.icon %}
+                                            <i class="{{ stat.environment.icon }} me-1"></i>
+                                            {% endif %}
+                                            {{ stat.environment.display_name }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">
+                                            {{ stat.environment.display_name }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ stat.secret_count }}</span>
+                                    </td>
+                                    <td>
+                                        {% if stat.environment.is_production %}
+                                        <span class="badge bg-danger">Production</span>
+                                        {% else %}
+                                        <span class="badge bg-info">Non-Production</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('environments.detail', id=stat.environment.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye me-1"></i>View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No environments configured.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Attention Required</h5>
+            </div>
+            <div class="card-body">
+                <!-- Expiring Secrets -->
+                {% if expiring_secrets %}
+                <h6 class="text-warning">
+                    <i class="fas fa-clock me-2"></i>Expiring Soon ({{ expiring_secrets|length }})
+                </h6>
+                <ul class="list-unstyled mb-3">
+                    {% for secret in expiring_secrets %}
+                    <li class="mb-1">
+                        <small>
+                            <a href="{{ url_for('secrets.detail', id=secret.id) }}" class="text-decoration-none">
+                                {{ secret.display_name }}
+                            </a>
+                            <span class="text-muted">
+                                ({{ secret.environment.name }})
+                            </span>
+                        </small>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                
+                <!-- Rotation Needed -->
+                {% if rotation_needed %}
+                <h6 class="text-info">
+                    <i class="fas fa-sync me-2"></i>Rotation Needed ({{ rotation_needed|length }})
+                </h6>
+                <ul class="list-unstyled mb-3">
+                    {% for secret in rotation_needed %}
+                    <li class="mb-1">
+                        <small>
+                            <a href="{{ url_for('secrets.detail', id=secret.id) }}" class="text-decoration-none">
+                                {{ secret.display_name }}
+                            </a>
+                            <span class="text-muted">
+                                ({{ secret.environment.name }})
+                            </span>
+                        </small>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                
+                <!-- Out of Sync -->
+                {% if out_of_sync %}
+                <h6 class="text-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>Out of Sync ({{ out_of_sync|length }})
+                </h6>
+                <ul class="list-unstyled">
+                    {% for secret in out_of_sync %}
+                    <li class="mb-1">
+                        <small>
+                            <a href="{{ url_for('secrets.detail', id=secret.id) }}" class="text-decoration-none">
+                                {{ secret.display_name }}
+                            </a>
+                            <span class="text-muted">
+                                ({{ secret.environment.name }})
+                            </span>
+                        </small>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                
+                {% if not expiring_secrets and not rotation_needed and not out_of_sync %}
+                <p class="text-success mb-0">
+                    <i class="fas fa-check-circle me-2"></i>All secrets are healthy!
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_activity %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    <th>Resource</th>
+                                    <th>Result</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activity in recent_activity %}
+                                <tr>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ activity.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small>{{ activity.username or 'System' }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ activity.action.value }}</span>
+                                    </td>
+                                    <td>
+                                        <small>
+                                            {% if activity.resource_name %}
+                                                {{ activity.resource_name }}
+                                                <span class="text-muted">({{ activity.resource_type }})</span>
+                                            {% else %}
+                                                {{ activity.resource_type }}
+                                            {% endif %}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if activity.result.value == 'success' %}
+                                        <span class="badge bg-success">Success</span>
+                                        {% elif activity.result.value == 'error' %}
+                                        <span class="badge bg-danger">Error</span>
+                                        {% elif activity.result.value == 'failure' %}
+                                        <span class="badge bg-warning">Failure</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ activity.result.value }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No recent activity.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

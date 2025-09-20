@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Create Environment - Keeper{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('environments.index') }}">Environments</a></li>
+                <li class="breadcrumb-item active">Create</li>
+            </ol>
+        </nav>
+        <h1><i class="fas fa-server me-2"></i>Create Environment</h1>
+        <p class="text-muted">Define a new deployment environment for secret management</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Environment Configuration</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <!-- Basic Information -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">Environment Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name" required
+                                   placeholder="e.g., production, staging, development">
+                            <div class="form-text">Unique identifier (lowercase, no spaces)</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="display_name" class="form-label">Display Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="display_name" name="display_name" required
+                                   placeholder="e.g., Production Environment">
+                            <div class="form-text">Human-readable name shown in the UI</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"
+                                  placeholder="Optional description of this environment's purpose"></textarea>
+                        <div class="form-text">Brief description of what this environment is used for</div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_production" name="is_production">
+                                <label class="form-check-label" for="is_production">
+                                    <strong>Production Environment</strong>
+                                </label>
+                                <div class="form-text">Enable additional security restrictions</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
+                                <label class="form-check-label" for="is_active">
+                                    <strong>Active Environment</strong>
+                                </label>
+                                <div class="form-text">Allow secret creation and management</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Synchronization Settings -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-sync me-2"></i>Synchronization Settings</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="aws_sync_enabled" name="aws_sync_enabled">
+                                <label class="form-check-label" for="aws_sync_enabled">
+                                    <strong>Enable AWS Secrets Manager Sync</strong>
+                                </label>
+                                <div class="form-text">Automatically synchronize secrets to AWS Secrets Manager</div>
+                            </div>
+                            
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="vault_sync_enabled" name="vault_sync_enabled">
+                                <label class="form-check-label" for="vault_sync_enabled">
+                                    <strong>Enable HashiCorp Vault Sync</strong>
+                                </label>
+                                <div class="form-text">Automatically synchronize secrets to HashiCorp Vault</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="vault_path_prefix" class="form-label">Vault Path Prefix</label>
+                                <input type="text" class="form-control" id="vault_path_prefix" name="vault_path_prefix"
+                                       placeholder="secret/data/">
+                                <div class="form-text">Base path for storing secrets in Vault (will be combined with environment name)</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Create Environment
+                        </button>
+                        <a href="{{ url_for('environments.index') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Environment Guidelines -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Environment Guidelines</h6>
+            </div>
+            <div class="card-body">
+                <h6 class="text-primary">Naming Convention</h6>
+                <ul class="small mb-3">
+                    <li>Use lowercase, descriptive names</li>
+                    <li>Common: production, staging, development</li>
+                    <li>Avoid spaces and special characters</li>
+                </ul>
+                
+                <h6 class="text-success">Security Best Practices</h6>
+                <ul class="small mb-3">
+                    <li>Production environments have additional restrictions</li>
+                    <li>Enable sync only for intended backends</li>
+                    <li>Test configuration in development first</li>
+                </ul>
+                
+                <h6 class="text-warning">Synchronization</h6>
+                <ul class="small mb-0">
+                    <li>Test sync configuration in development first</li>
+                    <li>Use different Vault paths per environment</li>
+                    <li>Monitor sync status after creation</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Environment Examples -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Common Examples</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Production</strong>
+                    <div class="small text-muted">
+                        Name: production<br>
+                        Display: Production Environment<br>
+                        Vault Path: secret/data/production/
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <strong>Staging</strong>
+                    <div class="small text-muted">
+                        Name: staging<br>
+                        Display: Staging Environment<br>
+                        Vault Path: secret/data/staging/
+                    </div>
+                </div>
+                
+                <div class="mb-0">
+                    <strong>Development</strong>
+                    <div class="small text-muted">
+                        Name: development<br>
+                        Display: Development Environment<br>
+                        Vault Path: secret/data/dev/
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

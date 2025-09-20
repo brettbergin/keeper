@@ -1,0 +1,3 @@
+# This file will be managed by uv
+# Use: uv add <package> to add new dependencies
+# Use: uv sync to install/sync dependencies

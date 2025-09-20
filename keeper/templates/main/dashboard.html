@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Keeper{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h1>
+        <p class="text-muted">Overview of your secret management system</p>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-2">Total Secrets</h6>
+                        <h3 class="mb-0">{{ total_secrets }}</h3>
+                    </div>
+                    <div class="text-primary">
+                        <i class="fas fa-key fa-2x"></i>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-success">
+                        <i class="fas fa-arrow-up"></i> Active secrets
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-2">Environments</h6>
+                        <h3 class="mb-0">{{ total_environments }}</h3>
+                    </div>
+                    <div class="text-info">
+                        <i class="fas fa-server fa-2x"></i>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <i class="fas fa-layer-group"></i> Dev, staging, prod
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-2">Sync Status</h6>
+                        <h3 class="mb-0">{{ synced_secrets }}</h3>
+                    </div>
+                    <div class="text-success">
+                        <i class="fas fa-sync fa-2x"></i>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-success">
+                        <i class="fas fa-check"></i> Synced to backends
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-2">Rotations Due</h6>
+                        <h3 class="mb-0 text-warning">{{ rotations_due }}</h3>
+                    </div>
+                    <div class="text-warning">
+                        <i class="fas fa-redo fa-2x"></i>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-warning">
+                        <i class="fas fa-clock"></i> Need attention
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity and Quick Actions -->
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_activities %}
+                    <div class="list-group list-group-flush">
+                        {% for activity in recent_activities %}
+                        <div class="list-group-item px-0">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="d-flex">
+                                    <div class="me-3">
+                                        {% if activity.action.value == 'create' %}
+                                        <span class="badge bg-success"><i class="fas fa-plus"></i></span>
+                                        {% elif activity.action.value == 'update' %}
+                                        <span class="badge bg-primary"><i class="fas fa-edit"></i></span>
+                                        {% elif activity.action.value == 'rotate' %}
+                                        <span class="badge bg-warning"><i class="fas fa-redo"></i></span>
+                                        {% elif activity.action.value == 'delete' %}
+                                        <span class="badge bg-danger"><i class="fas fa-trash"></i></span>
+                                        {% else %}
+                                        <span class="badge bg-secondary"><i class="fas fa-info"></i></span>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-1">{{ activity.action.value.title() }} - {{ activity.secret_name }}</h6>
+                                        <p class="mb-1 text-muted">{{ activity.details or 'No additional details' }}</p>
+                                        <small class="text-muted">by {{ activity.username }} - {{ activity.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+                                    </div>
+                                </div>
+                                <span class="badge bg-{{ 'success' if activity.result.value == 'success' else 'danger' }}">
+                                    {{ activity.result.value.title() }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('admin.audit') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-eye me-1"></i>View All Activity
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h6>No Recent Activity</h6>
+                        <p class="text-muted">Start by creating your first secret</p>
+                        <a href="{{ url_for('secrets.create') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Create Secret
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Quick Actions -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('secrets.create') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Create New Secret
+                    </a>
+                    <a href="{{ url_for('secrets.index') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-list me-2"></i>Browse Secrets
+                    </a>
+                    <a href="{{ url_for('environments.index') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-server me-2"></i>Manage Environments
+                    </a>
+                    {% if current_user.is_admin %}
+                    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-warning">
+                        <i class="fas fa-cog me-2"></i>Admin Panel
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- System Status -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-heartbeat me-2"></i>System Status</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <i class="fas fa-database fa-2x text-success mb-2"></i>
+                        <h6 class="mb-0">Database</h6>
+                        <small class="text-success">Healthy</small>
+                    </div>
+                    <div class="col-6">
+                        <i class="fas fa-cloud fa-2x text-success mb-2"></i>
+                        <h6 class="mb-0">Sync</h6>
+                        <small class="text-success">Connected</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

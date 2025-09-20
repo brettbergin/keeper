@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Keeper{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <i class="fas fa-key fa-3x text-primary mb-3"></i>
+                    <h2>Keeper</h2>
+                    <p class="text-muted">Enterprise Secret Management</p>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <!-- SAML Login -->
+                    <a href="{{ url_for('auth.saml_login') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-sign-in-alt me-2"></i>
+                        Login with SAML/SSO
+                    </a>
+                    
+                    <!-- Database Login -->
+                    <a href="{{ url_for('auth.database_login') }}" class="btn btn-success btn-lg">
+                        <i class="fas fa-user me-2"></i>
+                        Login with Username/Password
+                    </a>
+                    
+                    <!-- Registration Link -->
+                    <div class="text-center">
+                        <small class="text-muted">
+                            Don't have an account? <a href="{{ url_for('auth.database_register') }}" class="text-decoration-none">Register here</a>
+                        </small>
+                    </div>
+                    
+                    <!-- Demo Login -->
+                    <hr class="my-4">
+                    <p class="text-center text-muted small">Development Mode</p>
+                    <a href="{{ url_for('auth.demo_login') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-user-circle me-2"></i>
+                        Demo Login
+                    </a>
+                </div>
+                
+                <div class="mt-4 text-center">
+                    <small class="text-muted">
+                        Need help? <a href="{{ url_for('main.help') }}">Contact Support</a>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>About Keeper</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center">
+                        <i class="fas fa-shield-alt fa-2x text-primary mb-3"></i>
+                        <h6>Secure by Design</h6>
+                        <p class="small text-muted">
+                            End-to-end encryption with enterprise-grade security protocols.
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <i class="fas fa-sync-alt fa-2x text-info mb-3"></i>
+                        <h6>Multi-Backend Sync</h6>
+                        <p class="small text-muted">
+                            Seamlessly synchronize secrets between AWS Secrets Manager and HashiCorp Vault.
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <i class="fas fa-chart-line fa-2x text-success mb-3"></i>
+                        <h6>Enterprise Ready</h6>
+                        <p class="small text-muted">
+                            Comprehensive audit logging, RBAC, and compliance features.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

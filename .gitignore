@@ -205,3 +205,22 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Keeper specific
+keeper_dev.db
+keeper.db
+*.sqlite
+*.sqlite3
+secrets/
+*.pem
+*.key
+*.crt
+.env.local
+.env.production
+.env.development
+instance/
+
+# Keeper logs
+logs/*.log
+logs/*.log.*
+*.log.gz

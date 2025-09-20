@@ -1,0 +1,383 @@
+/* Keeper Custom Styles */
+
+/* Brand Colors */
+:root {
+    --keeper-primary: #2c3e50;
+    --keeper-secondary: #3498db;
+    --keeper-success: #27ae60;
+    --keeper-warning: #f39c12;
+    --keeper-danger: #e74c3c;
+    --keeper-info: #17a2b8;
+    --keeper-light: #ecf0f1;
+    --keeper-dark: #2c3e50;
+}
+
+/* Custom Navbar */
+.navbar-dark {
+    background-color: var(--keeper-dark) !important;
+}
+
+.navbar-brand {
+    font-weight: 600;
+    font-size: 1.5rem;
+}
+
+/* Card Enhancements */
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.card-header {
+    background-color: rgba(0, 0, 0, 0.03);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    font-weight: 500;
+}
+
+/* Secret Type Badges */
+.badge {
+    font-size: 0.75em;
+}
+
+/* Environment Color Badges */
+.environment-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* Sync Status Indicators */
+.sync-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* Secret Strength Indicator */
+.strength-indicator {
+    height: 4px;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+.strength-very-weak { background-color: var(--keeper-danger); width: 20%; }
+.strength-weak { background-color: #fd7e14; width: 40%; }
+.strength-medium { background-color: var(--keeper-warning); width: 60%; }
+.strength-strong { background-color: var(--keeper-info); width: 80%; }
+.strength-very-strong { background-color: var(--keeper-success); width: 100%; }
+
+/* Dashboard Statistics Cards */
+.stat-card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+/* Secret List Enhancements */
+.secret-item {
+    transition: background-color 0.2s ease;
+}
+
+.secret-item:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Form Enhancements */
+.form-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--keeper-secondary);
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+/* Button Enhancements */
+.btn {
+    font-weight: 500;
+    border-radius: 0.375rem;
+}
+
+.btn-primary {
+    background-color: var(--keeper-secondary);
+    border-color: var(--keeper-secondary);
+}
+
+.btn-primary:hover {
+    background-color: #2980b9;
+    border-color: #2980b9;
+}
+
+/* Alert Customizations */
+.alert {
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.alert-sm {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+/* Table Enhancements */
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(52, 152, 219, 0.05);
+}
+
+/* Pagination */
+.pagination .page-link {
+    color: var(--keeper-secondary);
+    border-color: #dee2e6;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--keeper-secondary);
+    border-color: var(--keeper-secondary);
+}
+
+.pagination .page-link:hover {
+    color: #2980b9;
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+}
+
+/* Footer */
+footer {
+    margin-top: auto;
+    border-top: 1px solid #dee2e6;
+}
+
+/* Secret Value Display */
+.secret-value {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    position: relative;
+}
+
+.secret-value.masked {
+    filter: blur(4px);
+    transition: filter 0.3s ease;
+}
+
+.secret-value.masked:hover {
+    filter: none;
+}
+
+.secret-value-toggle {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+}
+
+/* Loading States */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Responsive Enhancements */
+@media (max-width: 768px) {
+    .btn-group .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+}
+
+/* Light Theme (Default) */
+body {
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+.container, .container-fluid {
+    background-color: transparent;
+}
+
+/* Main Content Area */
+.main-content {
+    background-color: #ffffff;
+    min-height: calc(100vh - 80px);
+    padding: 2rem 0;
+}
+
+/* Card Improvements for Light Theme */
+.card {
+    background-color: #ffffff;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Status Icons */
+.status-icon {
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    border-radius: 50%;
+}
+
+.status-icon.success { background-color: var(--keeper-success); }
+.status-icon.warning { background-color: var(--keeper-warning); }
+.status-icon.danger { background-color: var(--keeper-danger); }
+.status-icon.info { background-color: var(--keeper-info); }
+
+/* Animation Classes */
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(-20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Utility Classes */
+.text-monospace {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.border-dashed {
+    border-style: dashed !important;
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, var(--keeper-primary), var(--keeper-secondary));
+}
+
+/* Copy to Clipboard Button */
+.copy-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.copy-btn.copied::after {
+    content: 'Copied!';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    animation: copyFeedback 1s ease-out;
+}
+
+@keyframes copyFeedback {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+}
+
+/* Environment-specific styling */
+.env-development { border-left: 4px solid #28a745; }
+.env-staging { border-left: 4px solid #ffc107; }
+.env-production { border-left: 4px solid #dc3545; }
+
+/* Secret type icons */
+.secret-type-icon {
+    width: 20px;
+    text-align: center;
+}
+
+/* Audit log styling */
+.audit-log-entry {
+    border-left: 3px solid transparent;
+    padding-left: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.audit-log-entry.success { border-left-color: var(--keeper-success); }
+.audit-log-entry.error { border-left-color: var(--keeper-danger); }
+.audit-log-entry.warning { border-left-color: var(--keeper-warning); }
+
+/* Progress bars for sync status */
+.sync-progress {
+    height: 4px;
+    background-color: #e9ecef;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.sync-progress-bar {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.sync-progress-bar.synced { background-color: var(--keeper-success); width: 100%; }
+.sync-progress-bar.partial { background-color: var(--keeper-warning); width: 50%; }
+.sync-progress-bar.error { background-color: var(--keeper-danger); width: 25%; }
+
+/* Tooltip customization */
+.tooltip {
+    font-size: 0.875rem;
+}
+
+.tooltip-inner {
+    max-width: 250px;
+}

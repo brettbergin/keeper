@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ environment.display_name }} - Environments - Keeper{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('environments.index') }}">Environments</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('environments.detail', id=environment.id) }}">{{ environment.display_name }}</a></li>
+                <li class="breadcrumb-item active">Edit</li>
+            </ol>
+        </nav>
+        <h1><i class="fas fa-edit me-2"></i>Edit Environment</h1>
+        <p class="text-muted">Update environment configuration and settings</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Environment Settings</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="display_name" class="form-label">Display Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="display_name" name="display_name" 
+                                   value="{{ environment.display_name }}" required>
+                            <div class="form-text">Human-readable name for this environment</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   value="{{ environment.name }}" readonly>
+                            <div class="form-text">System name (cannot be changed)</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ environment.description or '' }}</textarea>
+                        <div class="form-text">Brief description of this environment's purpose</div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                                       {% if environment.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="is_active">
+                                    <strong>Active Environment</strong>
+                                </label>
+                                <div class="form-text">When disabled, no new secrets can be created</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_production" name="is_production" 
+                                       {% if environment.is_production %}checked{% endif %}>
+                                <label class="form-check-label" for="is_production">
+                                    <strong>Production Environment</strong>
+                                </label>
+                                <div class="form-text">Enables additional security controls</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <h6 class="mb-3"><i class="fas fa-sync me-2"></i>Synchronization Settings</h6>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="aws_sync_enabled" name="aws_sync_enabled" 
+                                       {% if environment.aws_sync_enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="aws_sync_enabled">
+                                    <strong>AWS Secrets Manager Sync</strong>
+                                </label>
+                                <div class="form-text">Automatically sync secrets to AWS</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="vault_sync_enabled" name="vault_sync_enabled" 
+                                       {% if environment.vault_sync_enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="vault_sync_enabled">
+                                    <strong>HashiCorp Vault Sync</strong>
+                                </label>
+                                <div class="form-text">Automatically sync secrets to Vault</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="vault_path_prefix" class="form-label">Vault Path Prefix</label>
+                        <input type="text" class="form-control" id="vault_path_prefix" name="vault_path_prefix" 
+                               value="{{ environment.vault_path_prefix or '' }}" placeholder="secret/data/">
+                        <div class="form-text">Base path for storing secrets in Vault (e.g., secret/data/{{ environment.name }}/)</div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>Save Changes
+                            </button>
+                            <a href="{{ url_for('environments.detail', id=environment.id) }}" class="btn btn-outline-secondary ms-2">
+                                <i class="fas fa-times me-1"></i>Cancel
+                            </a>
+                        </div>
+                        {% if not environment.is_production %}
+                        <div>
+                            <button type="button" class="btn btn-outline-danger" onclick="confirmDelete()">
+                                <i class="fas fa-trash me-1"></i>Delete Environment
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Help Card -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Configuration Help</h6>
+            </div>
+            <div class="card-body">
+                <h6>Environment Types</h6>
+                <ul class="list-unstyled small">
+                    <li><strong>Development:</strong> For local development and testing</li>
+                    <li><strong>Staging:</strong> For pre-production testing</li>
+                    <li><strong>Production:</strong> For live applications</li>
+                </ul>
+
+                <h6 class="mt-3">Sync Options</h6>
+                <ul class="list-unstyled small">
+                    <li><strong>AWS Sync:</strong> Automatically pushes secrets to AWS Secrets Manager</li>
+                    <li><strong>Vault Sync:</strong> Automatically pushes secrets to HashiCorp Vault</li>
+                </ul>
+
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    <small><strong>Note:</strong> Production environments cannot be deleted and have additional security restrictions.</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Environment Stats -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Environment Statistics</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Total Secrets:</span>
+                    <span class="badge bg-primary">{{ environment.secrets.filter_by(is_active=True).count() }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Created:</span>
+                    <span>{{ environment.created_at.strftime('%Y-%m-%d') }}</span>
+                </div>
+                {% if environment.updated_at %}
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Last Modified:</span>
+                    <span>{{ environment.updated_at.strftime('%Y-%m-%d') }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDelete() {
+    if (confirm('Are you sure you want to delete this environment? This action cannot be undone and will delete all associated secrets.')) {
+        // Create a form to submit the delete request
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("environments.delete", id=environment.id) }}';
+        
+        // Add CSRF token
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = 'csrf_token';
+        csrfToken.value = '{{ csrf_token() }}';
+        form.appendChild(csrfToken);
+        
+        // Add method override for DELETE
+        const methodInput = document.createElement('input');
+        methodInput.type = 'hidden';
+        methodInput.name = '_method';
+        methodInput.value = 'DELETE';
+        form.appendChild(methodInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

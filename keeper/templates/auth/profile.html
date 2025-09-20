@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - Keeper{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-user me-2"></i>User Profile
+                </h4>
+                <a href="{{ url_for('auth.edit_profile') }}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-edit me-1"></i>Edit Profile
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-user-circle fa-5x text-muted"></i>
+                        </div>
+                        <h5>{{ user.full_name }}</h5>
+                        <p class="text-muted">{{ user.username }}</p>
+                        
+                        <!-- Role Badge -->
+                        {% if user.role.value == 'admin' %}
+                            <span class="badge bg-danger fs-6">
+                                <i class="fas fa-crown me-1"></i>Administrator
+                            </span>
+                        {% elif user.role.value == 'manager' %}
+                            <span class="badge bg-warning fs-6">
+                                <i class="fas fa-users me-1"></i>Manager
+                            </span>
+                        {% else %}
+                            <span class="badge bg-info fs-6">
+                                <i class="fas fa-user me-1"></i>User
+                            </span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-8">
+                        <h6 class="text-muted mb-3">Account Information</h6>
+                        
+                        <div class="row mb-3">
+                            <div class="col-sm-4"><strong>Email:</strong></div>
+                            <div class="col-sm-8">
+                                {{ user.email }}
+                                {% if user.email_verified %}
+                                    <i class="fas fa-check-circle text-success ms-2" title="Email verified"></i>
+                                {% else %}
+                                    <i class="fas fa-exclamation-triangle text-warning ms-2" title="Email not verified"></i>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-sm-4"><strong>Role:</strong></div>
+                            <div class="col-sm-8">{{ user.role_display_name }}</div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-sm-4"><strong>Authentication:</strong></div>
+                            <div class="col-sm-8">
+                                {% if user.auth_method.value == 'saml' %}
+                                    <i class="fas fa-shield-alt text-primary me-1"></i>SAML/SSO
+                                {% elif user.auth_method.value == 'database' %}
+                                    <i class="fas fa-key text-success me-1"></i>Username/Password
+                                {% else %}
+                                    <i class="fas fa-vial text-info me-1"></i>Demo
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-sm-4"><strong>Status:</strong></div>
+                            <div class="col-sm-8">
+                                {% if user.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactive</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        {% if user.preferred_environment %}
+                        <div class="row mb-3">
+                            <div class="col-sm-4"><strong>Preferred Environment:</strong></div>
+                            <div class="col-sm-8">{{ user.preferred_environment }}</div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if user.timezone %}
+                        <div class="row mb-3">
+                            <div class="col-sm-4"><strong>Timezone:</strong></div>
+                            <div class="col-sm-8">{{ user.timezone }}</div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-sm-4"><strong>Last Login:</strong></div>
+                            <div class="col-sm-8">
+                                {% if user.last_login %}
+                                    {{ user.last_login.strftime('%B %d, %Y at %I:%M %p') }}
+                                    {% if user.last_login_ip %}
+                                        <small class="text-muted">(from {{ user.last_login_ip }})</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">Never</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-sm-4"><strong>Account Created:</strong></div>
+                            <div class="col-sm-8">{{ user.created_at.strftime('%B %d, %Y') }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Manager Permissions -->
+        {% if user.role.value == 'manager' %}
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-shield-alt me-2"></i>Managed Environments
+                </h6>
+            </div>
+            <div class="card-body">
+                {% set managed_envs = user.get_managed_environments() %}
+                {% if managed_envs %}
+                    {% for env in managed_envs %}
+                        <span class="badge bg-warning me-2 mb-2">
+                            <i class="fas fa-server me-1"></i>{{ env.title() }}
+                        </span>
+                    {% endfor %}
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            You can approve operations in these environments.
+                        </small>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">No managed environments assigned.</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Account Actions -->
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-cog me-2"></i>Account Actions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('auth.edit_profile') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-edit me-2"></i>Edit Profile
+                    </a>
+                    
+                    {% if user.auth_method.value == 'database' %}
+                    <a href="{{ url_for('auth.change_password') }}" class="btn btn-outline-warning btn-sm">
+                        <i class="fas fa-key me-2"></i>Change Password
+                    </a>
+                    {% endif %}
+                    
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="card shadow">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>Quick Stats
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="border-end">
+                            <h4 class="text-primary mb-1">{{ user.secrets.filter_by(is_active=True).count() }}</h4>
+                            <small class="text-muted">Secrets Created</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-info mb-1">{{ user.audit_logs.count() }}</h4>
+                        <small class="text-muted">Actions Logged</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Role Information Modal -->
+<div class="modal fade" id="roleInfoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Role Information</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% if user.role.value == 'admin' %}
+                <h6><i class="fas fa-crown text-danger me-2"></i>Administrator</h6>
+                <p>Administrators have full access to all systems, environments, and user management capabilities. They can:</p>
+                <ul>
+                    <li>Access all secrets in all environments</li>
+                    <li>Manage user accounts and roles</li>
+                    <li>View comprehensive audit logs</li>
+                    <li>Configure system settings</li>
+                    <li>Approve any operations</li>
+                </ul>
+                {% elif user.role.value == 'manager' %}
+                <h6><i class="fas fa-users text-warning me-2"></i>Manager</h6>
+                <p>Managers can approve operations in their assigned environments. They can:</p>
+                <ul>
+                    <li>Approve secret operations in managed environments</li>
+                    <li>Access secrets in managed environments</li>
+                    <li>View audit logs for their environments</li>
+                    <li>Create and modify secrets in managed environments</li>
+                </ul>
+                {% else %}
+                <h6><i class="fas fa-user text-info me-2"></i>User</h6>
+                <p>Users have basic access to development and staging environments. They can:</p>
+                <ul>
+                    <li>Access secrets in development and staging</li>
+                    <li>Create and modify secrets in allowed environments</li>
+                    <li>Request approvals for production operations</li>
+                    <li>View their own audit history</li>
+                </ul>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Add click handler for role badge to show info modal
+document.addEventListener('DOMContentLoaded', function() {
+    const roleBadge = document.querySelector('.badge');
+    if (roleBadge) {
+        roleBadge.style.cursor = 'pointer';
+        roleBadge.onclick = function() {
+            const modal = new bootstrap.Modal(document.getElementById('roleInfoModal'));
+            modal.show();
+        };
+    }
+});
+</script>
+{% endblock %}
