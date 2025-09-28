@@ -211,7 +211,8 @@ keeper_dev.db
 keeper.db
 *.sqlite
 *.sqlite3
-secrets/
+/secrets/
+!keeper/templates/secrets/
 *.pem
 *.key
 *.crt
