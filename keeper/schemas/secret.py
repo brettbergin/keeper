@@ -1,5 +1,6 @@
 """Pydantic schemas for secret-related operations."""
 
+import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -53,7 +54,7 @@ class SecretBase(BaseModel):
 class SecretCreate(SecretBase):
     """Schema for creating a new secret."""
 
-    environment_id: int = Field(..., gt=0, description="Environment ID")
+    environment_id: uuid.UUID = Field(..., description="Environment ID")
     value: str = Field(..., min_length=1, description="Secret value")
 
     class Config:
@@ -120,7 +121,7 @@ class SecretRotateRequest(BaseModel):
 class EnvironmentInfo(BaseModel):
     """Schema for environment information in responses."""
 
-    id: int
+    id: uuid.UUID
     name: str
     display_name: str
     is_production: bool
@@ -129,7 +130,7 @@ class EnvironmentInfo(BaseModel):
 class SecretResponse(BaseModel):
     """Schema for secret response data."""
 
-    id: int
+    id: uuid.UUID
     name: str
     display_name: str
     description: Optional[str]
@@ -208,7 +209,7 @@ class SecretVersionResponse(BaseModel):
 class SecretHistoryResponse(BaseModel):
     """Schema for secret version history."""
 
-    secret_id: int
+    secret_id: uuid.UUID
     versions: List[SecretVersionResponse]
 
     class Config:

@@ -281,7 +281,7 @@ def verify_email(token):
     return redirect(url_for("auth.database_login"))
 
 
-@auth_bp.route("/resend-verification/<int:user_id>")
+@auth_bp.route("/resend-verification/<uuid:user_id>")
 def resend_verification(user_id):
     """Resend email verification link."""
     user = User.query.get_or_404(user_id)

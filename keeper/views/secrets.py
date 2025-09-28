@@ -1,5 +1,7 @@
 """Secrets blueprint for secret management operations."""
 
+import uuid
+
 from flask import (
     Blueprint,
     current_app,
@@ -81,7 +83,7 @@ def index():
     per_page = max(5, min(per_page, 100))
 
     # Filtering parameters
-    environment_id = request.args.get("environment", type=int)
+    environment_id = request.args.get("environment")
     secret_type = request.args.get("type")
     service = request.args.get("service")
     search = request.args.get("search")
@@ -107,7 +109,13 @@ def index():
 
     # Apply filters
     if environment_id:
-        query = query.filter_by(environment_id=environment_id)
+        try:
+            # Convert string UUID to UUID object
+            env_uuid = uuid.UUID(environment_id)
+            query = query.filter_by(environment_id=env_uuid)
+        except ValueError:
+            # Invalid UUID format, ignore the filter
+            pass
 
     if secret_type:
         try:
@@ -299,9 +307,66 @@ def create():
         description = request.form.get("description")
         secret_type = request.form.get("secret_type")
         secrecy_level = request.form.get("secrecy_level")
-        environment_id = request.form.get("environment_id", type=int)
+        environment_id = request.form.get("environment_id")
         service_name = request.form.get("service_name")
         value = request.form.get("value")
+        generation_method = request.form.get("generation_method", "manual")
+
+        # RBAC: Check if user can manually enter secrets
+        if generation_method == "manual" and not user.can_manually_enter_secrets():
+            flash(
+                "Only administrators can manually enter secret values. Please use the auto-generate feature.",
+                "error",
+            )
+            return render_template(
+                "secrets/create.html",
+                environments=Environment.get_active_environments(),
+                secret_types=list(SecretType),
+                secrecy_levels=list(SecrecyLevel),
+                current_user=user,
+            )
+
+        # Convert environment_id to UUID if provided
+        if environment_id:
+            try:
+                environment_id = uuid.UUID(environment_id)
+            except ValueError:
+                flash("Invalid environment ID", "error")
+                return render_template(
+                    "secrets/create.html",
+                    environments=Environment.get_active_environments(),
+                    secret_types=list(SecretType),
+                    secrecy_levels=list(SecrecyLevel),
+                    current_user=user,
+                )
+
+        # RBAC: Check if user can create secrets in the selected environment
+        if environment_id:
+            # Get the environment to check permissions
+            environment = Environment.query.get(environment_id)
+            if not environment:
+                flash("Environment not found", "error")
+                return render_template(
+                    "secrets/create.html",
+                    environments=Environment.get_active_environments(),
+                    secret_types=list(SecretType),
+                    secrecy_levels=list(SecrecyLevel),
+                    current_user=user,
+                )
+
+            # Check if user has permission to create secrets in this environment
+            if not user.can_create_secret(environment.name):
+                flash(
+                    f"You do not have permission to create secrets in the {environment.display_name} environment",
+                    "error",
+                )
+                return render_template(
+                    "secrets/create.html",
+                    environments=Environment.get_active_environments(),
+                    secret_types=list(SecretType),
+                    secrecy_levels=list(SecrecyLevel),
+                    current_user=user,
+                )
 
         # Validate required fields
         if not all([name, display_name, environment_id, value]):
@@ -311,6 +376,7 @@ def create():
                 environments=Environment.get_active_environments(),
                 secret_types=list(SecretType),
                 secrecy_levels=list(SecrecyLevel),
+                current_user=user,
             )
 
         # Check if secret already exists
@@ -325,6 +391,7 @@ def create():
                 environments=Environment.get_active_environments(),
                 secret_types=list(SecretType),
                 secrecy_levels=list(SecrecyLevel),
+                current_user=user,
             )
 
         try:
@@ -355,12 +422,12 @@ def create():
                 creator_id=user.id,
             )
 
-            # Create the first version
+            # Create the first version with proper generation method
             SecretVersion.create_version(
                 secret_id=secret.id,
                 value=value,
                 created_by_id=user.id,
-                generation_method="manual",
+                generation_method=generation_method,
             )
 
             # Log the action
@@ -380,15 +447,18 @@ def create():
             current_app.logger.error(f"Error creating secret: {e}")
             flash("An error occurred while creating the secret", "error")
 
+    # GET request - show create form
+    user = get_current_user()
     return render_template(
         "secrets/create.html",
         environments=Environment.get_active_environments(),
         secret_types=list(SecretType),
         secrecy_levels=list(SecrecyLevel),
+        current_user=user,
     )
 
 
-@secrets_bp.route("/<int:id>")
+@secrets_bp.route("/<uuid:id>")
 @require_auth
 def detail(id):
     """Show secret details."""
@@ -441,7 +511,7 @@ def detail(id):
     )
 
 
-@secrets_bp.route("/<int:id>/edit", methods=["GET", "POST"])
+@secrets_bp.route("/<uuid:id>/edit", methods=["GET", "POST"])
 @require_auth
 def edit(id):
     """Edit secret metadata."""
@@ -449,7 +519,7 @@ def edit(id):
     user = get_current_user()
 
     # Check permissions
-    if not user.can_access_environment(secret.environment.name):
+    if not user.can_edit_secret(secret.environment.name):
         flash("You do not have permission to edit secrets in this environment", "error")
         return redirect(url_for("secrets.index"))
 
@@ -572,7 +642,7 @@ def edit(id):
     )
 
 
-@secrets_bp.route("/<int:id>/rotate", methods=["GET", "POST"])
+@secrets_bp.route("/<uuid:id>/rotate", methods=["GET", "POST"])
 @require_auth
 def rotate(id):
     """Rotate a secret (AB rotation)."""
@@ -580,11 +650,19 @@ def rotate(id):
     user = get_current_user()
 
     # Check permissions
-    if not user.can_access_environment(secret.environment.name):
+    if not user.can_rotate_secret(secret.environment.name):
         flash(
             "You do not have permission to rotate secrets in this environment", "error"
         )
         return redirect(url_for("secrets.index"))
+
+    # Check if approval is required for this rotation
+    if user.requires_approval_for_rotation(secret.environment.name):
+        flash(
+            "This rotation requires manager approval. Redirecting to approval request.",
+            "info",
+        )
+        return redirect(url_for("approvals.request_rotation", secret_id=secret.id))
 
     if request.method == "POST":
         generation_method = request.form.get("generation_method", "manual")
@@ -592,6 +670,23 @@ def rotate(id):
         immediate_activate = "immediate_activate" in request.form
         auto_sync = "auto_sync" in request.form
         schedule_rotation = "schedule_rotation" in request.form
+
+        # RBAC: Check if user can manually enter secrets for rotation
+        if (
+            generation_method in ["manual", "imported"]
+            and not user.can_manually_enter_secrets()
+        ):
+            flash(
+                "Only administrators can manually enter or import secret values. Please use auto-generation.",
+                "error",
+            )
+            return render_template(
+                "secrets/rotate.html",
+                secret=secret,
+                current_version=secret.current_version,
+                versions=SecretVersion.get_version_history(secret.id, limit=5),
+                current_user=user,
+            )
 
         # Handle different generation methods
         if generation_method == "auto":
@@ -608,6 +703,7 @@ def rotate(id):
                     secret=secret,
                     current_version=secret.current_version,
                     versions=SecretVersion.get_version_history(secret.id, limit=5),
+                    current_user=user,
                 )
 
         elif generation_method == "imported":
@@ -622,6 +718,7 @@ def rotate(id):
                     secret=secret,
                     current_version=secret.current_version,
                     versions=SecretVersion.get_version_history(secret.id, limit=5),
+                    current_user=user,
                 )
             # TODO: Implement import functionality
             flash("Import functionality not yet implemented", "warning")
@@ -630,6 +727,7 @@ def rotate(id):
                 secret=secret,
                 current_version=secret.current_version,
                 versions=SecretVersion.get_version_history(secret.id, limit=5),
+                current_user=user,
             )
 
         try:
@@ -691,50 +789,232 @@ def rotate(id):
         secret=secret,
         current_version=current_version,
         versions=versions,
+        current_user=user,
     )
 
 
-@secrets_bp.route("/<int:id>/delete", methods=["POST"])
+@secrets_bp.route("/<uuid:id>/delete", methods=["POST"])
 @require_auth
 def delete(id):
-    """Delete a secret."""
+    """Delete a secret completely from all storage locations."""
+    secret = Secret.query.get_or_404(id)
+    user = get_current_user()
+
+    # Check permissions
+    if not user.can_edit_secret(secret.environment.name):
+        flash(
+            "You do not have permission to delete secrets in this environment", "error"
+        )
+        return redirect(url_for("secrets.index"))
+
+    secret_name = secret.display_name
+    deletion_results = {"local": False, "aws": False, "vault": False, "errors": []}
+
+    try:
+        from ..services.aws_secrets import AWSSecretsManager, AWSSecretsManagerError
+        from ..services.vault_client import VaultClient, VaultClientError
+
+        current_app.logger.info(
+            f"Starting complete deletion of secret {id} from all backends"
+        )
+
+        # Delete from AWS Secrets Manager if synced
+        if secret.aws_sync_status == SyncStatus.SYNCED and secret.aws_secret_arn:
+            try:
+                aws_client = AWSSecretsManager()
+                aws_result = aws_client.delete_secret(
+                    secret, user.id, force_delete=True
+                )
+                deletion_results["aws"] = True
+                current_app.logger.info(
+                    f"Successfully deleted secret from AWS: {aws_result}"
+                )
+            except AWSSecretsManagerError as e:
+                deletion_results["errors"].append(f"AWS deletion failed: {str(e)}")
+                current_app.logger.error(f"Failed to delete secret from AWS: {e}")
+            except Exception as e:
+                deletion_results["errors"].append(f"AWS deletion error: {str(e)}")
+                current_app.logger.error(f"Unexpected error deleting from AWS: {e}")
+
+        # Delete from HashiCorp Vault if synced
+        if secret.vault_sync_status == SyncStatus.SYNCED and secret.vault_path:
+            try:
+                vault_client = VaultClient()
+                vault_result = vault_client.delete_secret(secret, user.id)
+                deletion_results["vault"] = True
+                current_app.logger.info(
+                    f"Successfully deleted secret from Vault: {vault_result}"
+                )
+            except VaultClientError as e:
+                deletion_results["errors"].append(f"Vault deletion failed: {str(e)}")
+                current_app.logger.error(f"Failed to delete secret from Vault: {e}")
+            except Exception as e:
+                deletion_results["errors"].append(f"Vault deletion error: {str(e)}")
+                current_app.logger.error(f"Unexpected error deleting from Vault: {e}")
+
+        # Delete from local database (hard delete all versions)
+        try:
+            # Delete all secret versions first
+            SecretVersion.query.filter_by(secret_id=secret.id).delete()
+
+            # Delete the secret itself
+            secret.delete()
+            deletion_results["local"] = True
+            current_app.logger.info(f"Successfully deleted secret from local database")
+        except Exception as e:
+            deletion_results["errors"].append(f"Database deletion failed: {str(e)}")
+            current_app.logger.error(f"Failed to delete secret from database: {e}")
+
+        # Log the complete deletion action if local deletion succeeded
+        if deletion_results["local"]:
+            AuditLog.log_action(
+                action=AuditAction.DELETE,
+                result=AuditResult.SUCCESS,
+                resource_type="secret",
+                resource_id=str(secret.id),
+                resource_name=secret.name,
+                user_id=user.id,
+                username=user.username,
+                ip_address=request.remote_addr,
+                details={
+                    "action": "complete_deletion",
+                    "aws_deleted": deletion_results["aws"],
+                    "vault_deleted": deletion_results["vault"],
+                    "local_deleted": deletion_results["local"],
+                    "errors": deletion_results["errors"],
+                },
+            )
+
+        # Provide feedback based on results
+        if deletion_results["local"] and not deletion_results["errors"]:
+            flash(
+                f'Secret "{secret_name}" completely deleted from all storage locations',
+                "success",
+            )
+        elif deletion_results["local"] and deletion_results["errors"]:
+            error_summary = "; ".join(deletion_results["errors"])
+            flash(
+                f'Secret "{secret_name}" deleted from database, but some backend deletions failed: {error_summary}',
+                "warning",
+            )
+        else:
+            error_summary = "; ".join(deletion_results["errors"])
+            flash(f'Failed to delete secret "{secret_name}": {error_summary}', "error")
+
+    except Exception as e:
+        current_app.logger.error(f"Critical error during secret deletion {id}: {e}")
+        flash("A critical error occurred while deleting the secret", "error")
+
+    return redirect(url_for("secrets.index"))
+
+
+@secrets_bp.route("/<uuid:id>/remove-aws", methods=["POST"])
+@require_auth
+def remove_aws_immediate(id):
+    """Remove a secret from AWS Secrets Manager only."""
     secret = Secret.query.get_or_404(id)
     user = get_current_user()
 
     # Check permissions
     if not user.can_access_environment(secret.environment.name):
         flash(
-            "You do not have permission to delete secrets in this environment", "error"
+            "You do not have permission to modify secrets in this environment", "error"
         )
-        return redirect(url_for("secrets.index"))
+        return redirect(url_for("secrets.detail", id=id))
+
+    # Check if secret is actually synced to AWS
+    if secret.aws_sync_status != SyncStatus.SYNCED or not secret.aws_secret_arn:
+        flash("Secret is not synced to AWS Secrets Manager", "warning")
+        return redirect(url_for("secrets.detail", id=id))
 
     try:
-        secret_name = secret.display_name
+        from ..services.aws_secrets import AWSSecretsManager, AWSSecretsManagerError
 
-        # Soft delete - mark as inactive
-        secret.is_active = False
-        secret.save()
+        current_app.logger.info(f"Removing secret {id} from AWS Secrets Manager")
 
-        # Log the action
-        AuditLog.log_secret_action(
-            action=AuditAction.DELETE,
-            result=AuditResult.SUCCESS,
-            secret=secret,
-            user_id=user.id,
-            username=user.username,
-            ip_address=request.remote_addr,
-        )
+        # Remove from AWS
+        aws_client = AWSSecretsManager()
+        result = aws_client.delete_secret(secret, user.id, force_delete=True)
 
-        flash(f'Secret "{secret_name}" deleted successfully', "success")
+        if result.get("status") == "success":
+            # Update local status to reflect removal
+            secret.aws_sync_status = SyncStatus.NOT_SYNCED
+            secret.aws_secret_arn = None
+            secret.aws_version_id = None
+            secret.aws_last_sync = None
+            secret.save()
 
+            flash("Successfully removed from AWS Secrets Manager", "success")
+            current_app.logger.info(f"Successfully removed secret {id} from AWS")
+        else:
+            error_msg = result.get("message", "Unknown error")
+            flash(f"Failed to remove from AWS: {error_msg}", "error")
+
+    except AWSSecretsManagerError as e:
+        current_app.logger.error(f"AWS error removing secret {id}: {e}")
+        flash(f"AWS removal failed: {str(e)}", "error")
     except Exception as e:
-        current_app.logger.error(f"Error deleting secret {id}: {e}")
-        flash("An error occurred while deleting the secret", "error")
+        current_app.logger.error(f"Unexpected error removing secret {id} from AWS: {e}")
+        flash("An unexpected error occurred while removing from AWS", "error")
 
-    return redirect(url_for("secrets.index"))
+    return redirect(url_for("secrets.detail", id=id))
 
 
-@secrets_bp.route("/<int:id>/versions/<int:version_id>/activate", methods=["POST"])
+@secrets_bp.route("/<uuid:id>/remove-vault", methods=["POST"])
+@require_auth
+def remove_vault_immediate(id):
+    """Remove a secret from HashiCorp Vault only."""
+    secret = Secret.query.get_or_404(id)
+    user = get_current_user()
+
+    # Check permissions
+    if not user.can_access_environment(secret.environment.name):
+        flash(
+            "You do not have permission to modify secrets in this environment", "error"
+        )
+        return redirect(url_for("secrets.detail", id=id))
+
+    # Check if secret is actually synced to Vault
+    if secret.vault_sync_status != SyncStatus.SYNCED or not secret.vault_path:
+        flash("Secret is not synced to HashiCorp Vault", "warning")
+        return redirect(url_for("secrets.detail", id=id))
+
+    try:
+        from ..services.vault_client import VaultClient, VaultClientError
+
+        current_app.logger.info(f"Removing secret {id} from HashiCorp Vault")
+
+        # Remove from Vault
+        vault_client = VaultClient()
+        result = vault_client.delete_secret(secret, user.id)
+
+        if result.get("status") == "success":
+            # Update local status to reflect removal
+            secret.vault_sync_status = SyncStatus.NOT_SYNCED
+            secret.vault_path = None
+            secret.vault_version = None
+            secret.vault_last_sync = None
+            secret.save()
+
+            flash("Successfully removed from HashiCorp Vault", "success")
+            current_app.logger.info(f"Successfully removed secret {id} from Vault")
+        else:
+            error_msg = result.get("message", "Unknown error")
+            flash(f"Failed to remove from Vault: {error_msg}", "error")
+
+    except VaultClientError as e:
+        current_app.logger.error(f"Vault error removing secret {id}: {e}")
+        flash(f"Vault removal failed: {str(e)}", "error")
+    except Exception as e:
+        current_app.logger.error(
+            f"Unexpected error removing secret {id} from Vault: {e}"
+        )
+        flash("An unexpected error occurred while removing from Vault", "error")
+
+    return redirect(url_for("secrets.detail", id=id))
+
+
+@secrets_bp.route("/<uuid:id>/versions/<uuid:version_id>/activate", methods=["POST"])
 @require_auth
 def activate_version(id, version_id):
     """Activate a specific version of a secret (AB rotation)."""
@@ -780,7 +1060,7 @@ def activate_version(id, version_id):
     return redirect(url_for("secrets.detail", id=id))
 
 
-@secrets_bp.route("/<int:id>/sync", methods=["POST"])
+@secrets_bp.route("/<uuid:id>/sync", methods=["POST"])
 @require_auth
 def sync(id):
     """Manually sync a secret to external backends."""
@@ -821,7 +1101,7 @@ def sync(id):
     return redirect(url_for("secrets.detail", id=id))
 
 
-@secrets_bp.route("/<int:id>/sync-status")
+@secrets_bp.route("/<uuid:id>/sync-status")
 @require_auth
 def sync_status(id):
     """Get sync status for a secret."""
@@ -845,3 +1125,83 @@ def sync_status(id):
             "overall_status": secret.sync_status,
         }
     )
+
+
+@secrets_bp.route("/<uuid:id>/sync-aws", methods=["POST"])
+@require_auth
+def sync_aws_immediate(id):
+    """Immediately sync a secret to AWS Secrets Manager."""
+    secret = Secret.query.get_or_404(id)
+    user = get_current_user()
+
+    # Check permissions
+    if not user.can_access_environment(secret.environment.name):
+        flash("You do not have permission to sync secrets in this environment", "error")
+        return redirect(url_for("secrets.detail", id=id))
+
+    try:
+        from ..services.sync_service import SyncError, SyncService
+
+        current_app.logger.info(f"Starting immediate AWS sync for secret {id}")
+
+        # Perform immediate sync to AWS only
+        sync_service = SyncService()
+        result = sync_service.sync_secret_to_backends(secret, user.id, backends=["aws"])
+
+        if result["overall_success"]:
+            flash("Successfully synced to AWS Secrets Manager", "success")
+            current_app.logger.info(f"AWS sync successful for secret {id}")
+        else:
+            error_msg = result.get("aws", {}).get("message", "Unknown error")
+            flash(f"AWS sync failed: {error_msg}", "error")
+            current_app.logger.error(f"AWS sync failed for secret {id}: {error_msg}")
+
+    except SyncError as e:
+        current_app.logger.error(f"Sync error for secret {id}: {e}")
+        flash(f"Sync failed: {str(e)}", "error")
+    except Exception as e:
+        current_app.logger.error(f"Unexpected error syncing secret {id}: {e}")
+        flash("An unexpected error occurred during sync", "error")
+
+    return redirect(url_for("secrets.detail", id=id))
+
+
+@secrets_bp.route("/<uuid:id>/sync-vault", methods=["POST"])
+@require_auth
+def sync_vault_immediate(id):
+    """Immediately sync a secret to HashiCorp Vault."""
+    secret = Secret.query.get_or_404(id)
+    user = get_current_user()
+
+    # Check permissions
+    if not user.can_access_environment(secret.environment.name):
+        flash("You do not have permission to sync secrets in this environment", "error")
+        return redirect(url_for("secrets.detail", id=id))
+
+    try:
+        from ..services.sync_service import SyncError, SyncService
+
+        current_app.logger.info(f"Starting immediate Vault sync for secret {id}")
+
+        # Perform immediate sync to Vault only
+        sync_service = SyncService()
+        result = sync_service.sync_secret_to_backends(
+            secret, user.id, backends=["vault"]
+        )
+
+        if result["overall_success"]:
+            flash("Successfully synced to HashiCorp Vault", "success")
+            current_app.logger.info(f"Vault sync successful for secret {id}")
+        else:
+            error_msg = result.get("vault", {}).get("message", "Unknown error")
+            flash(f"Vault sync failed: {error_msg}", "error")
+            current_app.logger.error(f"Vault sync failed for secret {id}: {error_msg}")
+
+    except SyncError as e:
+        current_app.logger.error(f"Sync error for secret {id}: {e}")
+        flash(f"Sync failed: {str(e)}", "error")
+    except Exception as e:
+        current_app.logger.error(f"Unexpected error syncing secret {id}: {e}")
+        flash("An unexpected error occurred during sync", "error")
+
+    return redirect(url_for("secrets.detail", id=id))

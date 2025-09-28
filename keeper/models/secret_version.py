@@ -3,7 +3,7 @@
 import hashlib
 import json
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from flask import current_app
 from sqlalchemy import (
@@ -17,6 +17,7 @@ from sqlalchemy import (
     String,
     Text,
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from .base import BaseModel
@@ -28,7 +29,9 @@ class SecretVersion(BaseModel):
     __tablename__ = "secret_versions"
 
     # Version information
-    secret_id = Column(Integer, ForeignKey("secrets.id"), nullable=False, index=True)
+    secret_id = Column(
+        UUID(as_uuid=True), ForeignKey("secrets.id"), nullable=False, index=True
+    )
     version_number = Column(Integer, nullable=False)
     is_current = Column(Boolean, default=False, nullable=False, index=True)
 
@@ -63,7 +66,7 @@ class SecretVersion(BaseModel):
     expires_at = Column(DateTime, nullable=True)
 
     # Foreign keys
-    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
     # Relationships
     secret = relationship("Secret", back_populates="versions")
@@ -82,6 +85,67 @@ class SecretVersion(BaseModel):
         if self.expires_at and datetime.utcnow() > self.expires_at:
             return False
         return True
+
+    @property
+    def encryption_type(self) -> str:
+        """Get the encryption type (KMS or Local)."""
+        if self.encryption_algorithm and "kms" in self.encryption_algorithm.lower():
+            return "KMS"
+        elif self.encryption_algorithm and "local" in self.encryption_algorithm.lower():
+            return "Local"
+        elif self.kms_key_id and self.kms_key_id != "local-development-key":
+            return "KMS"
+        else:
+            return "Local"
+
+    @property
+    def encryption_display_name(self) -> str:
+        """Get a user-friendly encryption method display name."""
+        if self.encryption_type == "KMS":
+            return "AES-256-GCM with AWS KMS"
+        else:
+            return "AES-256-GCM (Local Development)"
+
+    @property
+    def is_kms_encrypted(self) -> bool:
+        """Check if this version uses KMS encryption."""
+        return self.encryption_type == "KMS"
+
+    @property
+    def kms_key_display(self) -> str:
+        """Get a user-friendly display of the KMS key."""
+        if not self.kms_key_id or self.kms_key_id == "local-development-key":
+            return "Local Development Key"
+
+        # If it's an ARN, extract the key ID
+        if self.kms_key_id.startswith("arn:aws:kms:"):
+            parts = self.kms_key_id.split("/")
+            if len(parts) > 1:
+                return f"AWS KMS Key: {parts[-1][:8]}..."
+
+        # If it's an alias
+        if self.kms_key_id.startswith("alias/"):
+            return f"AWS KMS Alias: {self.kms_key_id}"
+
+        # Truncate long key IDs
+        if len(self.kms_key_id) > 20:
+            return f"AWS KMS Key: {self.kms_key_id[:8]}...{self.kms_key_id[-8:]}"
+
+        return f"AWS KMS Key: {self.kms_key_id}"
+
+    def get_aws_secret_name(self) -> str:
+        """Get the versioned AWS Secrets Manager secret name for this version."""
+        if hasattr(self, "secret") and self.secret:
+            return self.secret.get_aws_secret_name(self.version_number)
+        else:
+            # If secret relationship not loaded, we need to construct it manually
+            # This shouldn't happen in normal usage but provides a fallback
+            from .secret import Secret
+
+            secret = Secret.query.get(self.secret_id)
+            if secret:
+                return secret.get_aws_secret_name(self.version_number)
+            return f"keeper/unknown/unknown/v{self.version_number}"
 
     def decrypt_value(self) -> str:
         """Decrypt and return the secret value using envelope encryption."""
@@ -175,15 +239,16 @@ class SecretVersion(BaseModel):
             raise ValueError(f"Failed to decrypt secret version: {str(e)}") from e
 
     def encrypt_value(
-        self, value: str, encryption_context: Optional[Dict[str, str]] = None
+        self, value: str, encryption_context: Optional[dict[str, str]] = None
     ) -> None:
         """Encrypt and store the secret value using envelope encryption."""
+        from ..services.key_management import (
+            EncryptionError,
+            KeyManagementError,
+            get_key_management_service,
+        )
+
         try:
-            from ..services.key_management import (
-                EncryptionError,
-                KeyManagementError,
-                get_key_management_service,
-            )
 
             # Validate input
             if not value:
@@ -260,7 +325,7 @@ class SecretVersion(BaseModel):
             )
             raise ValueError(f"Failed to encrypt secret version: {str(e)}") from e
 
-    def _get_encryption_context(self) -> Optional[Dict[str, str]]:
+    def _get_encryption_context(self) -> Optional[dict[str, str]]:
         """Get encryption context for this secret version."""
         try:
             # Try to use the loaded relationship first
@@ -279,13 +344,13 @@ class SecretVersion(BaseModel):
                 result = db.session.execute(
                     text(
                         """
-                        SELECT s.name, e.name as env_name 
-                        FROM secrets s 
-                        JOIN environments e ON s.environment_id = e.id 
+                        SELECT s.name, e.name as env_name
+                        FROM secrets s
+                        JOIN environments e ON s.environment_id = e.id
                         WHERE s.id = :secret_id
                     """
                     ),
-                    {"secret_id": self.secret_id},
+                    {"secret_id": str(self.secret_id)},
                 ).fetchone()
 
                 if result:
@@ -431,7 +496,7 @@ class SecretVersion(BaseModel):
 
             current_app.logger.info(f"Deactivated secret version {self.id}")
 
-    def get_generation_params_dict(self) -> Dict[str, Any]:
+    def get_generation_params_dict(self) -> dict[str, Any]:
         """Get generation parameters as a dictionary."""
         if not self.generation_params:
             return {}
@@ -442,7 +507,7 @@ class SecretVersion(BaseModel):
         except (json.JSONDecodeError, TypeError):
             return {}
 
-    def set_generation_params_dict(self, params: Dict[str, Any]) -> None:
+    def set_generation_params_dict(self, params: dict[str, Any]) -> None:
         """Set generation parameters from a dictionary."""
 
         self.generation_params = json.dumps(params) if params else None
@@ -503,11 +568,11 @@ class SecretVersion(BaseModel):
     @classmethod
     def create_version(
         cls,
-        secret_id: int,
+        secret_id: str,
         value: str,
-        created_by_id: int,
+        created_by_id: str,
         generation_method: str = "manual",
-        generation_params: Optional[Dict[str, Any]] = None,
+        generation_params: Optional[dict[str, Any]] = None,
         make_current: bool = True,
     ) -> "SecretVersion":
         """Create a new secret version with transaction safety."""

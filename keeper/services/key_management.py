@@ -3,7 +3,7 @@
 import secrets
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -50,8 +50,8 @@ class KeyManagementService(ABC):
 
     @abstractmethod
     def encrypt_secret(
-        self, value: str, encryption_context: Optional[Dict[str, str]] = None
-    ) -> Dict[str, Any]:
+        self, value: str, encryption_context: Optional[dict[str, str]] = None
+    ) -> dict[str, Any]:
         """
         Encrypt a secret value.
 
@@ -70,8 +70,8 @@ class KeyManagementService(ABC):
     @abstractmethod
     def decrypt_secret(
         self,
-        encrypted_data: Dict[str, Any],
-        encryption_context: Optional[Dict[str, str]] = None,
+        encrypted_data: dict[str, Any],
+        encryption_context: Optional[dict[str, str]] = None,
     ) -> str:
         """
         Decrypt a secret value.
@@ -89,7 +89,7 @@ class KeyManagementService(ABC):
         pass
 
     @abstractmethod
-    def rotate_keys(self, key_id: Optional[str] = None) -> Dict[str, Any]:
+    def rotate_keys(self, key_id: Optional[str] = None) -> dict[str, Any]:
         """
         Rotate encryption keys.
 
@@ -105,7 +105,7 @@ class KeyManagementService(ABC):
         pass
 
     @abstractmethod
-    def get_key_info(self, key_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_key_info(self, key_id: Optional[str] = None) -> dict[str, Any]:
         """
         Get information about encryption keys.
 
@@ -128,8 +128,8 @@ class KMSKeyManagement(KeyManagementService):
         self.kms_service = KMSService()
 
     def encrypt_secret(
-        self, value: str, encryption_context: Optional[Dict[str, str]] = None
-    ) -> Dict[str, Any]:
+        self, value: str, encryption_context: Optional[dict[str, str]] = None
+    ) -> dict[str, Any]:
         """
         Encrypt a secret using KMS envelope encryption.
 
@@ -219,8 +219,8 @@ class KMSKeyManagement(KeyManagementService):
 
     def decrypt_secret(
         self,
-        encrypted_data: Dict[str, Any],
-        encryption_context: Optional[Dict[str, str]] = None,
+        encrypted_data: dict[str, Any],
+        encryption_context: Optional[dict[str, str]] = None,
     ) -> str:
         """
         Decrypt a secret using KMS envelope encryption.
@@ -307,7 +307,7 @@ class KMSKeyManagement(KeyManagementService):
                 original_error=e,
             ) from e
 
-    def rotate_keys(self, key_id: Optional[str] = None) -> Dict[str, Any]:
+    def rotate_keys(self, key_id: Optional[str] = None) -> dict[str, Any]:
         """
         Rotate KMS Customer Master Key.
 
@@ -325,7 +325,7 @@ class KMSKeyManagement(KeyManagementService):
         except KMSServiceError as e:
             raise KeyManagementError(f"Key rotation failed: {str(e)}") from e
 
-    def get_key_info(self, key_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_key_info(self, key_id: Optional[str] = None) -> dict[str, Any]:
         """
         Get KMS key information.
 
@@ -370,11 +370,15 @@ class LocalKeyManagement(KeyManagementService):
         # Create a 32-byte key for AES-256
         import hashlib
 
-        return hashlib.sha256(f"keeper-local-{key_material}".encode()).digest()
+        local_key = hashlib.sha256(f"keeper-local-{key_material}".encode()).digest()
+        current_app.logger.debug(
+            f"_get_local_key: SECRET_KEY='{key_material}', local_key_hash={hashlib.sha256(local_key).hexdigest()[:16]}..."
+        )
+        return local_key
 
     def encrypt_secret(
-        self, value: str, encryption_context: Optional[Dict[str, str]] = None
-    ) -> Dict[str, Any]:
+        self, value: str, encryption_context: Optional[dict[str, str]] = None
+    ) -> dict[str, Any]:
         """
         Encrypt a secret using local AES-256-GCM.
 
@@ -424,8 +428,8 @@ class LocalKeyManagement(KeyManagementService):
 
     def decrypt_secret(
         self,
-        encrypted_data: Dict[str, Any],
-        encryption_context: Optional[Dict[str, str]] = None,
+        encrypted_data: dict[str, Any],
+        encryption_context: Optional[dict[str, str]] = None,
     ) -> str:
         """
         Decrypt a secret using local AES-256-GCM.
@@ -463,10 +467,17 @@ class LocalKeyManagement(KeyManagementService):
             return plaintext.decode("utf-8")
 
         except Exception as e:
-            current_app.logger.error(f"Local decryption error: {str(e)}")
-            raise KeyManagementError(f"Local decryption failed: {str(e)}") from e
+            import traceback
 
-    def rotate_keys(self, key_id: Optional[str] = None) -> Dict[str, Any]:
+            current_app.logger.error(
+                f"Local decryption error: {type(e).__name__}: {str(e)}"
+            )
+            current_app.logger.error(f"Traceback: {traceback.format_exc()}")
+            raise KeyManagementError(
+                f"Local decryption failed: {type(e).__name__}: {str(e)}"
+            ) from e
+
+    def rotate_keys(self, key_id: Optional[str] = None) -> dict[str, Any]:
         """
         Local key rotation (no-op).
 
@@ -485,7 +496,7 @@ class LocalKeyManagement(KeyManagementService):
             "message": "Key rotation not supported in local development mode",
         }
 
-    def get_key_info(self, key_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_key_info(self, key_id: Optional[str] = None) -> dict[str, Any]:
         """
         Get local key information.
 
@@ -521,17 +532,42 @@ def get_key_management_service() -> KeyManagementService:
 
     if backend == "kms":
         # Validate KMS configuration
-        if not (
-            current_app.config.get("KMS_KEY_ID")
-            or current_app.config.get("KMS_KEY_ALIAS")
-        ):
+        kms_key_id = current_app.config.get("KMS_KEY_ID")
+        kms_key_alias = current_app.config.get("KMS_KEY_ALIAS")
+        aws_access_key = current_app.config.get("AWS_ACCESS_KEY_ID")
+        aws_secret_key = current_app.config.get("AWS_SECRET_ACCESS_KEY")
+        aws_region = current_app.config.get("KMS_REGION") or current_app.config.get(
+            "AWS_REGION"
+        )
+
+        # Check for required KMS key configuration
+        if not (kms_key_id or kms_key_alias):
             current_app.logger.warning(
                 "KMS backend selected but no KMS_KEY_ID or KMS_KEY_ALIAS configured. "
                 "Falling back to local key management."
             )
             return LocalKeyManagement()
 
+        # Check for AWS credentials
+        if not (aws_access_key and aws_secret_key):
+            current_app.logger.warning(
+                "KMS backend selected but AWS credentials not configured. "
+                "Falling back to local key management."
+            )
+            return LocalKeyManagement()
+
+        # Check for AWS region
+        if not aws_region:
+            current_app.logger.warning(
+                "KMS backend selected but no AWS/KMS region configured. "
+                "Falling back to local key management."
+            )
+            return LocalKeyManagement()
+
         try:
+            current_app.logger.info(
+                f"Initializing KMS key management with key: {kms_key_id or kms_key_alias}"
+            )
             return KMSKeyManagement()
         except Exception as e:
             current_app.logger.error(

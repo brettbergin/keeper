@@ -119,6 +119,10 @@ class User(BaseModel):
         else:  # USER role
             return environment in ["development", "staging"]
 
+    def can_manually_enter_secrets(self) -> bool:
+        """Check if user can manually enter secret values (vs only auto-generate)."""
+        return self.role == UserRole.ADMIN
+
     def can_edit_secret(self, environment: str) -> bool:
         """Check if user can edit secrets in an environment."""
         if self.role == UserRole.ADMIN:

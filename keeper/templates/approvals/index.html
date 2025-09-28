@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Approvals - Keeper{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-check-circle me-2"></i>Approvals</h1>
+                <p class="text-muted">Manage approval requests and review pending operations</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Pending Approvals for Review -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Pending Approvals</h5>
+                <span class="badge bg-warning">{{ pending_approvals|length }} waiting</span>
+            </div>
+            <div class="card-body">
+                {% if pending_approvals %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Resource</th>
+                                <th>Environment</th>
+                                <th>Requested By</th>
+                                <th>Requested</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for approval in pending_approvals %}
+                            <tr>
+                                <td>
+                                    {% if approval.approval_type.value == 'secret_rotation' %}
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-sync-alt me-1"></i>Rotation
+                                    </span>
+                                    {% elif approval.approval_type.value == 'secret_create' %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-plus me-1"></i>Create
+                                    </span>
+                                    {% elif approval.approval_type.value == 'secret_update' %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-edit me-1"></i>Update
+                                    </span>
+                                    {% elif approval.approval_type.value == 'secret_delete' %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-trash me-1"></i>Delete
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ approval.approval_type.value.title() }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ approval.resource_name }}</strong>
+                                    {% if approval.request_reason %}
+                                    <div class="text-muted small">{{ approval.request_reason[:50] }}{% if approval.request_reason|length > 50 %}...{% endif %}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ 'danger' if approval.environment_name == 'production' else 'secondary' }}">
+                                        {{ approval.environment_name.title() }}
+                                    </span>
+                                </td>
+                                <td>{{ approval.requester_username }}</td>
+                                <td>
+                                    <span class="text-muted small">{{ approval.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                    {% if approval.expires_at %}
+                                    <div class="text-warning small">
+                                        <i class="fas fa-clock me-1"></i>Expires: {{ approval.expires_at.strftime('%Y-%m-%d %H:%M') }}
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('approvals.detail', approval_id=approval.id) }}"
+                                           class="btn btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-success"
+                                                onclick="showApprovalModal('{{ approval.id }}', 'approve')">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-danger"
+                                                onclick="showApprovalModal('{{ approval.id }}', 'reject')">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-check-circle text-success fa-3x mb-3"></i>
+                    <h5>No Pending Approvals</h5>
+                    <p class="text-muted">All approval requests have been processed.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- My Requests Sidebar -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-user me-2"></i>My Recent Requests</h6>
+            </div>
+            <div class="card-body">
+                {% if my_requests %}
+                {% for request in my_requests %}
+                <div class="border-bottom pb-2 mb-2">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong class="small">{{ request.resource_name }}</strong>
+                            <div class="text-muted small">{{ request.approval_type.value.replace('_', ' ').title() }}</div>
+                        </div>
+                        <div>
+                            {% if request.status.value == 'pending' %}
+                            <span class="badge bg-warning small">Pending</span>
+                            {% elif request.status.value == 'approved' %}
+                            <span class="badge bg-success small">Approved</span>
+                            {% elif request.status.value == 'rejected' %}
+                            <span class="badge bg-danger small">Rejected</span>
+                            {% else %}
+                            <span class="badge bg-secondary small">{{ request.status.value.title() }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="text-muted small">{{ request.created_at.strftime('%m/%d %H:%M') }}</div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted mb-0">No recent requests</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Approval Stats</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="text-warning">
+                            <i class="fas fa-clock fa-lg"></i>
+                            <div class="fw-bold">{{ pending_approvals|length }}</div>
+                            <div class="small text-muted">Pending</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-success">
+                            <i class="fas fa-check fa-lg"></i>
+                            <div class="fw-bold">{{ my_requests|selectattr('status.value', 'equalto', 'approved')|list|length }}</div>
+                            <div class="small text-muted">Approved</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-info">
+                            <i class="fas fa-list fa-lg"></i>
+                            <div class="fw-bold">{{ my_requests|length }}</div>
+                            <div class="small text-muted">Total</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Approval Action Modal -->
+<div class="modal fade" id="approvalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="approvalModalTitle">Approve Request</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="approvalForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="comment" class="form-label">Comment</label>
+                        <textarea class="form-control" id="comment" name="comment" rows="3"
+                                  placeholder="Add a comment about your decision..."></textarea>
+                        <div class="form-text" id="commentHelp">Optional for approvals, required for rejections.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn" id="approvalSubmitBtn">Approve</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function showApprovalModal(approvalId, action) {
+    const modal = new bootstrap.Modal(document.getElementById('approvalModal'));
+    const form = document.getElementById('approvalForm');
+    const title = document.getElementById('approvalModalTitle');
+    const submitBtn = document.getElementById('approvalSubmitBtn');
+    const commentHelp = document.getElementById('commentHelp');
+
+    if (action === 'approve') {
+        form.action = `/approvals/${approvalId}/approve`;
+        title.textContent = 'Approve Request';
+        submitBtn.textContent = 'Approve';
+        submitBtn.className = 'btn btn-success';
+        commentHelp.textContent = 'Optional for approvals, required for rejections.';
+    } else {
+        form.action = `/approvals/${approvalId}/reject`;
+        title.textContent = 'Reject Request';
+        submitBtn.textContent = 'Reject';
+        submitBtn.className = 'btn btn-danger';
+        commentHelp.textContent = 'A comment is required when rejecting requests.';
+    }
+
+    modal.show();
+}
+</script>
+{% endblock %}

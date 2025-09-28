@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Approval Request - {{ approval.resource_name }} - Keeper{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-check-circle me-2"></i>Approval Request</h1>
+                <p class="text-muted">{{ approval.approval_type.value.replace('_', ' ').title() }} - {{ approval.resource_name }}</p>
+            </div>
+            <div>
+                <a href="{{ url_for('approvals.index') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Approvals
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Request Information -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Request Details</h5>
+                <div>
+                    {% if approval.status.value == 'pending' %}
+                    <span class="badge bg-warning">Pending</span>
+                    {% elif approval.status.value == 'approved' %}
+                    <span class="badge bg-success">Approved</span>
+                    {% elif approval.status.value == 'rejected' %}
+                    <span class="badge bg-danger">Rejected</span>
+                    {% elif approval.status.value == 'expired' %}
+                    <span class="badge bg-secondary">Expired</span>
+                    {% else %}
+                    <span class="badge bg-info">{{ approval.status.value.title() }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th width="25%">Type:</th>
+                        <td>
+                            {% if approval.approval_type.value == 'secret_rotation' %}
+                            <i class="fas fa-sync-alt me-1"></i>Secret Rotation
+                            {% elif approval.approval_type.value == 'secret_create' %}
+                            <i class="fas fa-plus me-1"></i>Secret Creation
+                            {% elif approval.approval_type.value == 'secret_update' %}
+                            <i class="fas fa-edit me-1"></i>Secret Update
+                            {% elif approval.approval_type.value == 'secret_delete' %}
+                            <i class="fas fa-trash me-1"></i>Secret Deletion
+                            {% else %}
+                            {{ approval.approval_type.value.replace('_', ' ').title() }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Resource:</th>
+                        <td>
+                            {% if secret %}
+                            <a href="{{ url_for('secrets.detail', id=secret.id) }}">{{ approval.resource_name }}</a>
+                            {% else %}
+                            {{ approval.resource_name }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Environment:</th>
+                        <td>
+                            <span class="badge bg-{{ 'danger' if approval.environment_name == 'production' else 'secondary' }}">
+                                {{ approval.environment_name.title() }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Requested By:</th>
+                        <td>{{ approval.requester_username }}</td>
+                    </tr>
+                    <tr>
+                        <th>Requested:</th>
+                        <td>{{ approval.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    </tr>
+                    {% if approval.expires_at %}
+                    <tr>
+                        <th>Expires:</th>
+                        <td class="text-warning">
+                            <i class="fas fa-clock me-1"></i>{{ approval.expires_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% if approval.request_reason %}
+                    <tr>
+                        <th>Reason:</th>
+                        <td>{{ approval.request_reason }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        <!-- Approval Actions -->
+        {% if approval.status.value == 'pending' and can_approve %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-gavel me-2"></i>Approval Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <form method="POST" action="{{ url_for('approvals.approve', approval_id=approval.id) }}">
+                            <div class="mb-3">
+                                <label for="approve_comment" class="form-label">Approval Comment</label>
+                                <textarea class="form-control" id="approve_comment" name="comment" rows="2"
+                                          placeholder="Optional comment about approval..."></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check me-2"></i>Approve Request
+                            </button>
+                        </form>
+                    </div>
+                    <div class="col-md-6">
+                        <form method="POST" action="{{ url_for('approvals.reject', approval_id=approval.id) }}">
+                            <div class="mb-3">
+                                <label for="reject_comment" class="form-label">Rejection Reason <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="reject_comment" name="comment" rows="2" required
+                                          placeholder="Explain why this request is being rejected..."></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-times me-2"></i>Reject Request
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Approval History -->
+        {% if approval.status.value != 'pending' %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Approval History</h5>
+            </div>
+            <div class="card-body">
+                {% if approval.approved_at %}
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <strong>
+                            {% if approval.status.value == 'approved' %}
+                            <i class="fas fa-check text-success me-1"></i>Approved
+                            {% else %}
+                            <i class="fas fa-times text-danger me-1"></i>Rejected
+                            {% endif %}
+                        </strong>
+                        <div class="text-muted small">{{ approval.approved_at.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                    </div>
+                    <div class="text-end">
+                        <div><strong>{{ approval.approver_username }}</strong></div>
+                        {% if approval.approval_comment %}
+                        <div class="text-muted small">{{ approval.approval_comment }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if approval.executed %}
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <strong>Executed:</strong> {{ approval.executed_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                    {% if approval.execution_result %}
+                    <div class="mt-1">{{ approval.execution_result }}</div>
+                    {% endif %}
+                </div>
+                {% elif approval.status.value == 'approved' and can_approve %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    This request has been approved but not yet executed.
+                    <a href="{{ url_for('approvals.execute', approval_id=approval.id) }}" class="btn btn-primary btn-sm ms-2">
+                        <i class="fas fa-play me-1"></i>Execute Now
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Request Details Sidebar -->
+    <div class="col-md-4">
+        {% if secret %}
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-key me-2"></i>Secret Information</h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless table-sm">
+                    <tr>
+                        <th>Name:</th>
+                        <td>{{ secret.name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Display Name:</th>
+                        <td>{{ secret.display_name or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Type:</th>
+                        <td>{{ secret.secret_type.value.title() }}</td>
+                    </tr>
+                    <tr>
+                        <th>Environment:</th>
+                        <td>{{ secret.environment.name.title() }}</td>
+                    </tr>
+                    <tr>
+                        <th>Service:</th>
+                        <td>{{ secret.service_name or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Last Rotated:</th>
+                        <td>{{ secret.updated_at.strftime('%Y-%m-%d') if secret.updated_at else 'Never' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Request Configuration -->
+        {% if approval.request_details %}
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-cogs me-2"></i>Request Configuration</h6>
+            </div>
+            <div class="card-body">
+                <div class="small">
+                    {% for key, value in approval.get_request_details().items() %}
+                    <div class="mb-1">
+                        <strong>{{ key.replace('_', ' ').title() }}:</strong>
+                        {% if value is sameas true %}
+                        <span class="text-success">Yes</span>
+                        {% elif value is sameas false %}
+                        <span class="text-muted">No</span>
+                        {% else %}
+                        {{ value }}
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

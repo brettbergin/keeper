@@ -44,6 +44,13 @@
                             <i class="fas fa-server me-1"></i>Environments
                         </a>
                     </li>
+                    {% if session.get('is_manager') or session.get('is_admin') %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('approvals.index') }}">
+                            <i class="fas fa-check-circle me-1"></i>Approvals
+                        </a>
+                    </li>
+                    {% endif %}
                     {% if session.get('is_admin') %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('admin.index') }}">
@@ -123,7 +130,7 @@
         <div class="container">
             <div class="row">
                 <div class="col-md-6">
-                    <p class="mb-0">&copy; 2023 Keeper. Enterprise Secret Management.</p>
+                    <p class="mb-0">&copy; 2025 Keeper: Secret Management.</p>
                 </div>
                 <div class="col-md-6 text-md-end">
                     <a href="{{ url_for('main.about') }}" class="text-decoration-none me-3">About</a>

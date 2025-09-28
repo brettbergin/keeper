@@ -37,7 +37,7 @@ def list_environments():
 @require_auth
 def list_secrets():
     """List secrets with filtering."""
-    environment_id = request.args.get("environment", type=int)
+    environment_id = request.args.get("environment")
     service = request.args.get("service")
     secret_type = request.args.get("type")
 
@@ -73,7 +73,7 @@ def list_secrets():
     )
 
 
-@api_bp.route("/secrets/<int:id>")
+@api_bp.route("/secrets/<uuid:id>")
 @require_auth
 def get_secret(id):
     """Get secret details."""
@@ -118,7 +118,7 @@ def get_secret(id):
     )
 
 
-@api_bp.route("/secrets/<int:id>/value")
+@api_bp.route("/secrets/<uuid:id>/value")
 @require_auth
 def get_secret_value(id):
     """Get secret value (current version)."""
@@ -207,7 +207,7 @@ def create_secret():
         return jsonify({"error": "Failed to create secret"}), 500
 
 
-@api_bp.route("/secrets/<int:id>/rotate", methods=["POST"])
+@api_bp.route("/secrets/<uuid:id>/rotate", methods=["POST"])
 @require_auth
 def rotate_secret(id):
     """Rotate a secret."""

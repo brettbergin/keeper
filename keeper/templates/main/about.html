@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}About - Keeper{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-info-circle me-2"></i>About Keeper</h1>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title">Enterprise Secret Management</h2>
+                <p class="card-text">
+                    Keeper is a comprehensive enterprise secret management solution designed to securely store,
+                    manage, and synchronize sensitive information across multiple environments and services.
+                </p>
+
+                <h3 class="mt-4">Key Features</h3>
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <i class="fas fa-lock text-primary me-2"></i>
+                        <strong>Secure Storage:</strong> Advanced encryption and secure storage of secrets
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-sync text-primary me-2"></i>
+                        <strong>Multi-Environment Sync:</strong> Synchronize secrets across AWS, HashiCorp Vault, and more
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-users text-primary me-2"></i>
+                        <strong>Role-Based Access:</strong> Granular permission control and user management
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-history text-primary me-2"></i>
+                        <strong>Audit Logging:</strong> Complete audit trail of all secret operations
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-redo text-primary me-2"></i>
+                        <strong>Automatic Rotation:</strong> Scheduled and on-demand secret rotation
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-shield-alt text-primary me-2"></i>
+                        <strong>Approval Workflows:</strong> Multi-stage approval for sensitive operations
+                    </li>
+                </ul>
+
+                <h3 class="mt-4">Supported Integrations</h3>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="fab fa-aws text-warning me-2"></i>
+                                AWS Secrets Manager
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-server text-info me-2"></i>
+                                HashiCorp Vault
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="fab fa-microsoft text-primary me-2"></i>
+                                Azure Key Vault
+                            </li>
+                            <li class="mb-2">
+                                <i class="fab fa-google text-success me-2"></i>
+                                Google Secret Manager
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info me-2"></i>System Information</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-6">Version:</dt>
+                    <dd class="col-sm-6">1.0.0</dd>
+
+                    <dt class="col-sm-6">Release:</dt>
+                    <dd class="col-sm-6">Enterprise</dd>
+
+                    <dt class="col-sm-6">Build:</dt>
+                    <dd class="col-sm-6">2025.09.20</dd>
+
+                    <dt class="col-sm-6">License:</dt>
+                    <dd class="col-sm-6">Commercial</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-heart me-2"></i>Support</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    Need help or have questions? Our support team is here to assist you.
+                </p>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('main.help') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-question-circle me-2"></i>Help & Documentation
+                    </a>
+                    <a href="mailto:support@keeper.com" class="btn btn-outline-secondary">
+                        <i class="fas fa-envelope me-2"></i>Contact Support
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

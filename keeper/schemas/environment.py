@@ -1,5 +1,6 @@
 """Pydantic schemas for environment-related operations."""
 
+import uuid
 from typing import List, Optional
 
 from pydantic import BaseModel, Field, validator
@@ -97,7 +98,7 @@ class EnvironmentUpdate(BaseModel):
 class EnvironmentResponse(BaseModel):
     """Schema for environment response data."""
 
-    id: int
+    id: uuid.UUID
     name: str
     display_name: str
     description: Optional[str]

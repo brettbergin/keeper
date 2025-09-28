@@ -40,7 +40,7 @@ def index():
     )
 
 
-@approvals_bp.route("/<int:approval_id>")
+@approvals_bp.route("/<uuid:approval_id>")
 @require_auth
 def detail(approval_id):
     """View approval details."""
@@ -70,7 +70,7 @@ def detail(approval_id):
     )
 
 
-@approvals_bp.route("/<int:approval_id>/approve", methods=["POST"])
+@approvals_bp.route("/<uuid:approval_id>/approve", methods=["POST"])
 @require_manager_or_admin
 def approve(approval_id):
     """Approve a pending request."""
@@ -96,7 +96,7 @@ def approve(approval_id):
     return redirect(url_for("approvals.detail", approval_id=approval_id))
 
 
-@approvals_bp.route("/<int:approval_id>/reject", methods=["POST"])
+@approvals_bp.route("/<uuid:approval_id>/reject", methods=["POST"])
 @require_manager_or_admin
 def reject(approval_id):
     """Reject a pending request."""
@@ -121,7 +121,7 @@ def reject(approval_id):
     return redirect(url_for("approvals.detail", approval_id=approval_id))
 
 
-@approvals_bp.route("/<int:approval_id>/execute", methods=["GET", "POST"])
+@approvals_bp.route("/<uuid:approval_id>/execute", methods=["GET", "POST"])
 @require_manager_or_admin
 def execute(approval_id):
     """Execute an approved request."""
@@ -177,7 +177,7 @@ def api_count():
     return jsonify({"pending_count": pending_count})
 
 
-@approvals_bp.route("/request/rotation/<int:secret_id>", methods=["GET", "POST"])
+@approvals_bp.route("/request/rotation/<uuid:secret_id>", methods=["GET", "POST"])
 @require_auth
 def request_rotation(secret_id):
     """Request approval for secret rotation."""

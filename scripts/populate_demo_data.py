@@ -9,7 +9,7 @@ provide realistic test data for development and demonstrations.
 import os
 import sys
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Add the parent directory to the path so we can import keeper modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -24,27 +24,60 @@ from keeper.models import (
 
 class DemoDataPopulator:
     """Handles creation of demo data."""
-    
+
     def __init__(self, app):
         self.app = app
         self.users = {}
         self.environments = {}
         self.secrets = []
         self.summary_data = {}
+        self.key_backend = None
         
     def populate_all(self):
         """Populate all demo data."""
         print("🚀 Starting demo data population...")
-        
+
         with self.app.app_context():
+            self.detect_key_backend()
             self.create_demo_users()
             self.get_environments()
             self.create_demo_secrets()
             self.create_audit_entries()
             self.collect_summary_data()
-            
+
         print("✅ Demo data population completed!")
         self.print_summary()
+
+    def detect_key_backend(self):
+        """Detect and validate the key management backend configuration."""
+        from flask import current_app
+        from keeper.services.key_management import get_key_management_service
+
+        self.key_backend = current_app.config.get('KEY_MANAGEMENT_BACKEND', 'local')
+        print(f"\n🔐 Detecting key management backend: {self.key_backend}")
+
+        try:
+            # Test the key management service
+            km_service = get_key_management_service()
+
+            # Perform a test encryption to validate the backend works
+            test_value = "test-encryption-for-demo-data"
+            encrypted_data = km_service.encrypt_secret(test_value)
+            decrypted_value = km_service.decrypt_secret(encrypted_data)
+
+            if decrypted_value == test_value:
+                algorithm = encrypted_data.get('algorithm', 'unknown')
+                print(f"  ✅ Key management backend working: {algorithm}")
+                return True
+            else:
+                print(f"  ❌ Key management test failed: decryption mismatch")
+                return False
+
+        except Exception as e:
+            print(f"  ⚠️  Key management backend issue: {str(e)}")
+            print(f"  ➡️  Falling back to local encryption for demo data")
+            self.key_backend = 'local'
+            return False
     
     def create_demo_users(self):
         """Create demo users with different roles."""
@@ -121,7 +154,7 @@ class DemoDataPopulator:
                 auth_method=AuthMethod.DEMO,
                 is_active=True,
                 email_verified=True,
-                last_login=datetime.utcnow() - timedelta(days=random.randint(1, 30))
+                last_login=datetime.now(timezone.utc) - timedelta(days=random.randint(1, 30))
             )
             
             # Set managed environments for managers
@@ -152,12 +185,13 @@ class DemoDataPopulator:
                 'name': 'database-dev-password',
                 'display_name': 'Development Database Password',
                 'description': 'PostgreSQL password for development environment',
-                'secret_type': SecretType.PASSWORD,
+                'secret_type': SecretType.DATABASE_CREDENTIALS,
                 'secrecy_level': SecrecyLevel.MEDIUM,
                 'environment': 'development',
                 'service_name': 'postgresql',
-                'value': 'dev_pg_pass_2024!',
-                'creator': 'diana.dev'
+                'value': '{"username": "dev_user", "password": "dev_pg_pass_2024!", "host": "localhost", "port": 5432, "database": "myapp_dev", "ssl": false}',
+                'creator': 'diana.dev',
+                'tags': '{"database_type": "postgresql", "purpose": "development"}'
             },
             {
                 'name': 'redis-dev-url',
@@ -184,15 +218,18 @@ class DemoDataPopulator:
             
             # Staging secrets (created by developers and managers)
             {
-                'name': 'database-staging-password', 
+                'name': 'database-staging-password',
                 'display_name': 'Staging Database Password',
-                'description': 'PostgreSQL password for staging environment',
-                'secret_type': SecretType.PASSWORD,
+                'description': 'PostgreSQL credentials for staging environment',
+                'secret_type': SecretType.DATABASE_CREDENTIALS,
                 'secrecy_level': SecrecyLevel.HIGH,
                 'environment': 'staging',
                 'service_name': 'postgresql',
-                'value': 'staging_secure_password_2024$',
-                'creator': 'bob.staging'
+                'value': '{"username": "staging_user", "password": "staging_secure_password_2024$", "host": "staging-db.company.com", "port": 5432, "database": "myapp_staging", "ssl": true}',
+                'creator': 'bob.staging',
+                'auto_rotate': True,
+                'rotation_interval_days': 60,
+                'tags': '{"database_type": "postgresql", "purpose": "staging"}'
             },
             {
                 'name': 'jwt-signing-key-staging',
@@ -220,14 +257,18 @@ class DemoDataPopulator:
             # Production secrets (created by managers and admin)
             {
                 'name': 'database-prod-password',
-                'display_name': 'Production Database Password', 
-                'description': 'PostgreSQL master password for production',
-                'secret_type': SecretType.PASSWORD,
+                'display_name': 'Production Database Password',
+                'description': 'PostgreSQL master credentials for production',
+                'secret_type': SecretType.DATABASE_CREDENTIALS,
                 'secrecy_level': SecrecyLevel.CRITICAL,
                 'environment': 'production',
                 'service_name': 'postgresql',
-                'value': 'prod_ultra_secure_password_2024!@#$%',
-                'creator': 'admin'
+                'value': '{"username": "prod_master", "password": "prod_ultra_secure_password_2024!@#$%", "host": "prod-db-cluster.company.com", "port": 5432, "database": "myapp_production", "ssl": true, "ssl_mode": "require"}',
+                'creator': 'admin',
+                'auto_rotate': True,
+                'rotation_interval_days': 30,
+                'expires_at': datetime.now(timezone.utc) + timedelta(days=90),
+                'tags': '{"database_type": "postgresql", "purpose": "production", "critical": "true"}'
             },
             {
                 'name': 'stripe-live-keys',
@@ -273,7 +314,85 @@ class DemoDataPopulator:
                 'environment': 'production',
                 'service_name': 'deployment',
                 'value': '-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAFwAAAAdzc2gtcn\n...(demo SSH key)...\n-----END OPENSSH PRIVATE KEY-----',
-                'creator': 'alice.manager'
+                'creator': 'alice.manager',
+                'auto_rotate': True,
+                'rotation_interval_days': 90
+            },
+
+            # RSA Key example
+            {
+                'name': 'jwt-rsa-signing-key',
+                'display_name': 'JWT RSA Signing Key',
+                'description': 'RSA private key for JWT token signing',
+                'secret_type': SecretType.RSA_KEY,
+                'secrecy_level': SecrecyLevel.CRITICAL,
+                'environment': 'production',
+                'service_name': 'auth-service',
+                'value': '-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA2Z3QX1j+h8F7c1vH9dR2tY4kL6mN8oP9qR7sT5uV0wX1y2Z3\n...(demo RSA key)...\n-----END RSA PRIVATE KEY-----',
+                'creator': 'admin',
+                'auto_rotate': True,
+                'rotation_interval_days': 365,
+                'tags': '{"purpose": "authentication", "algorithm": "RS256"}'
+            },
+
+            # YAML Configuration example
+            {
+                'name': 'app-yaml-config',
+                'display_name': 'Application YAML Configuration',
+                'description': 'Main application configuration in YAML format',
+                'secret_type': SecretType.YAML,
+                'secrecy_level': SecrecyLevel.MEDIUM,
+                'environment': 'development',
+                'service_name': 'web-app',
+                'value': '''database:
+  host: localhost
+  port: 5432
+  name: myapp_dev
+  ssl: false
+redis:
+  host: localhost
+  port: 6379
+  db: 0
+logging:
+  level: DEBUG
+  format: json
+features:
+  debug_mode: true
+  profiling: true''',
+                'creator': 'frank.backend',
+                'tags': '{"config_type": "yaml", "environment_specific": "true"}'
+            },
+
+            # Database Credentials example
+            {
+                'name': 'mongo-cluster-creds',
+                'display_name': 'MongoDB Cluster Credentials',
+                'description': 'Complete credentials for MongoDB cluster connection',
+                'secret_type': SecretType.DATABASE_CREDENTIALS,
+                'secrecy_level': SecrecyLevel.HIGH,
+                'environment': 'staging',
+                'service_name': 'mongodb',
+                'value': '{"username": "app_user", "password": "staging_mongo_pass_2024!", "host": "mongo-cluster.staging.local", "port": 27017, "database": "app_staging", "ssl": true, "auth_source": "admin"}',
+                'creator': 'bob.staging',
+                'expires_at': datetime.now(timezone.utc) + timedelta(days=180),
+                'tags': '{"database_type": "mongodb", "cluster": "staging-primary"}'
+            },
+
+            # Certificate with expiration
+            {
+                'name': 'ca-root-cert',
+                'display_name': 'CA Root Certificate',
+                'description': 'Root CA certificate for internal PKI',
+                'secret_type': SecretType.CERTIFICATE,
+                'secrecy_level': SecrecyLevel.CRITICAL,
+                'environment': 'production',
+                'service_name': 'pki',
+                'value': '-----BEGIN CERTIFICATE-----\nMIIDXTCCAkWgAwIBAgIJANvlNBaAqba8MA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV\n...(demo CA certificate)...\n-----END CERTIFICATE-----',
+                'creator': 'admin',
+                'expires_at': datetime.now(timezone.utc) + timedelta(days=365),
+                'auto_rotate': True,
+                'rotation_interval_days': 730,
+                'tags': '{"cert_type": "root_ca", "key_length": "2048"}'
             }
         ]
         
@@ -302,7 +421,7 @@ class DemoDataPopulator:
                     continue
                 
                 # Create secret
-                secret = Secret.create(
+                secret = Secret(
                     name=secret_data['name'],
                     display_name=secret_data['display_name'],
                     description=secret_data['description'],
@@ -310,8 +429,18 @@ class DemoDataPopulator:
                     secrecy_level=secret_data['secrecy_level'],
                     environment_id=environment.id,
                     service_name=secret_data['service_name'],
-                    creator_id=creator.id
+                    creator_id=creator.id,
+                    is_active=True,
+                    auto_rotate=secret_data.get('auto_rotate', False),
+                    rotation_interval_days=secret_data.get('rotation_interval_days'),
+                    expires_at=secret_data.get('expires_at')
                 )
+
+                # Set tags if provided
+                if secret_data.get('tags'):
+                    secret.tags = secret_data['tags']
+
+                secret.save()
                 
                 # Create the first version
                 SecretVersion.create_version(
@@ -321,17 +450,40 @@ class DemoDataPopulator:
                     generation_method='manual'
                 )
                 
-                # Add some random sync status
-                secret.aws_sync_status = random.choice([SyncStatus.SYNCED, SyncStatus.OUT_OF_SYNC, SyncStatus.NOT_SYNCED])
-                secret.vault_sync_status = random.choice([SyncStatus.SYNCED, SyncStatus.OUT_OF_SYNC, SyncStatus.NOT_SYNCED])
+                # Set realistic sync status - newly created secrets are NOT synced to backends
+                # This reflects reality: secrets need to be explicitly synced after creation
+
+                # All secrets start as NOT_SYNCED since they haven't been pushed to backends yet
+                secret.aws_sync_status = SyncStatus.NOT_SYNCED
+                secret.vault_sync_status = SyncStatus.NOT_SYNCED
+
+                # For demo variety, some secrets can be marked as SYNC_PENDING
+                # This shows users that some secrets are waiting to be synced
+                if random.random() < 0.4:  # 40% chance to have something pending
+                    # Randomly choose which backend(s) to mark as pending
+                    backends_to_pending = []
+                    if random.random() < 0.7:  # 70% chance AWS pending
+                        backends_to_pending.append('aws')
+                    if random.random() < 0.5:  # 50% chance Vault pending
+                        backends_to_pending.append('vault')
+
+                    # Apply pending status based on environment
+                    if secret_data['environment'] == 'production' and backends_to_pending:
+                        # Production more likely to have pending syncs
+                        if 'aws' in backends_to_pending and random.random() < 0.8:
+                            secret.aws_sync_status = SyncStatus.SYNC_PENDING
+                        if 'vault' in backends_to_pending and random.random() < 0.6:
+                            secret.vault_sync_status = SyncStatus.SYNC_PENDING
+                    elif secret_data['environment'] == 'staging' and backends_to_pending:
+                        # Staging moderate chance
+                        if 'aws' in backends_to_pending and random.random() < 0.6:
+                            secret.aws_sync_status = SyncStatus.SYNC_PENDING
+                        if 'vault' in backends_to_pending and random.random() < 0.4:
+                            secret.vault_sync_status = SyncStatus.SYNC_PENDING
+                    # Development secrets mostly stay NOT_SYNCED (no changes)
                 
-                if secret.aws_sync_status == SyncStatus.SYNCED:
-                    secret.aws_last_sync = datetime.utcnow() - timedelta(hours=random.randint(1, 48))
-                    secret.aws_secret_arn = f"arn:aws:secretsmanager:us-west-2:123456789012:secret:{secret.name}-{random.randint(100000, 999999)}"
-                
-                if secret.vault_sync_status == SyncStatus.SYNCED:
-                    secret.vault_last_sync = datetime.utcnow() - timedelta(hours=random.randint(1, 48))
-                    secret.vault_path = f"secret/data/{secret_data['environment']}/{secret.name}"
+                # Note: No fake ARNs or sync timestamps - these will be set when actually synced
+                # aws_last_sync, aws_secret_arn, vault_last_sync, vault_path remain None until real sync
                 
                 secret.save()
                 self.secrets.append(secret)
@@ -404,7 +556,8 @@ class DemoDataPopulator:
             'users': user_data,
             'secrets_by_env': secrets_by_env,
             'total_users': len(self.users),
-            'total_secrets': len(self.secrets)
+            'total_secrets': len(self.secrets),
+            'key_backend': self.key_backend
         }
     
     def print_summary(self):
@@ -419,19 +572,30 @@ class DemoDataPopulator:
             print(f"  • {user_data['full_name']} - {user_data['role']}{env_info}")
         
         print(f"\n🔐 Secrets created: {self.summary_data['total_secrets']}")
+        print(f"🔑 Encryption backend: {self.summary_data['key_backend'].upper()}")
         for env_name, secrets in self.summary_data['secrets_by_env'].items():
             print(f"  📍 {env_name.title()}: {len(secrets)} secrets")
             for secret_data in secrets:
                 print(f"    • {secret_data['display_name']} ({secret_data['secrecy_level']})")
-        
+
+        print(f"\n⚠️  Encryption Notes:")
+        if self.summary_data['key_backend'] == 'kms':
+            print(f"  • All secrets encrypted with AWS KMS (production-grade)")
+            print(f"  • Requires valid AWS credentials and KMS configuration")
+        else:
+            print(f"  • All secrets encrypted with local keys (development only)")
+            print(f"  • NOT suitable for production - configure KMS for production use")
+
         print("\n🎯 Next steps:")
         print("  1. Start the application: make run")
-        print("  2. Visit: http://localhost:5000")
+        print("  2. Visit: http://localhost:8989")
         print("  3. Try the demo login with different users:")
         print("     • admin@company.com (Administrator)")
         print("     • alice@company.com (Production Manager)")
         print("     • diana@company.com (Developer)")
         print("  4. Explore the secrets and try different role permissions!")
+        if self.summary_data['key_backend'] == 'kms':
+            print("  5. Test AWS sync functionality with: keeper sync pending --backend aws")
         print("="*60)
 
 

@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}User Detail - {{ user.username }} - Admin - Keeper{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-user me-2"></i>{{ user.full_name or user.username }}</h1>
+                <p class="text-muted">User details and activity</p>
+            </div>
+            <div>
+                <a href="{{ url_for('admin.users') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Users
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- User Information -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>User Information</h5>
+                <div>
+                    {% if user.is_active %}
+                    <span class="badge bg-success">Active</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Inactive</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th width="30%">Username:</th>
+                        <td>{{ user.username }}</td>
+                    </tr>
+                    <tr>
+                        <th>Full Name:</th>
+                        <td>{{ user.full_name or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Email:</th>
+                        <td>{{ user.email }}</td>
+                    </tr>
+                    <tr>
+                        <th>Role:</th>
+                        <td>
+                            {% if user.role.value == 'admin' %}
+                            <span class="badge bg-danger">{{ user.role.value.title() }}</span>
+                            {% elif user.role.value == 'manager' %}
+                            <span class="badge bg-warning">{{ user.role.value.title() }}</span>
+                            {% else %}
+                            <span class="badge bg-info">{{ user.role.value.title() }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Auth Method:</th>
+                        <td><span class="badge bg-secondary">{{ user.auth_method.value.title() }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Email Verified:</th>
+                        <td>
+                            {% if user.email_verified %}
+                            <span class="text-success"><i class="fas fa-check-circle"></i> Yes</span>
+                            {% else %}
+                            <span class="text-warning"><i class="fas fa-exclamation-triangle"></i> No</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Created:</th>
+                        <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Last Login:</th>
+                        <td>{{ user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else 'Never' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Permissions -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Permissions</h5>
+            </div>
+            <div class="card-body">
+                {% if user.role.value == 'admin' %}
+                <div class="alert alert-danger" role="alert">
+                    <i class="fas fa-crown me-2"></i>
+                    <strong>Administrator</strong><br>
+                    This user has full system access to all environments and features.
+                </div>
+                {% elif user.role.value == 'manager' %}
+                <div class="alert alert-warning" role="alert">
+                    <i class="fas fa-user-tie me-2"></i>
+                    <strong>Manager</strong><br>
+                    This user can manage specific environments and approve requests.
+                </div>
+
+                {% if user.managed_environments %}
+                <h6 class="mt-3">Managed Environments:</h6>
+                <ul class="list-unstyled">
+                    {% for env_name in user.get_managed_environments() %}
+                    <li><i class="fas fa-server me-2"></i>{{ env_name.title() }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {% else %}
+                <div class="alert alert-info" role="alert">
+                    <i class="fas fa-user me-2"></i>
+                    <strong>Regular User</strong><br>
+                    This user can access development and staging environments.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Actions -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="{{ url_for('admin.edit_user_role', id=user.id) }}" class="btn btn-warning">
+                        <i class="fas fa-edit me-2"></i>Edit Role
+                    </a>
+
+                    {% if not user.is_admin or user.id != current_user.id %}
+                    <form method="POST" action="{{ url_for('admin.toggle_user_active', id=user.id) }}" class="d-inline">
+                        <button type="submit"
+                                class="btn btn-{{ 'danger' if user.is_active else 'success' }}"
+                                onclick="return confirm('Are you sure you want to {{ 'deactivate' if user.is_active else 'activate' }} this user?')">
+                            <i class="fas fa-{{ 'ban' if user.is_active else 'check' }} me-2"></i>
+                            {{ 'Deactivate' if user.is_active else 'Activate' }} User
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if user.auth_method.value == 'database' %}
+                    <a href="{{ url_for('admin.reset_user_password', id=user.id) }}" class="btn btn-info">
+                        <i class="fas fa-key me-2"></i>Reset Password
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

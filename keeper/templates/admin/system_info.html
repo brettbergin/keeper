@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+
+{% block title %}System Information - Admin - Keeper{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-server me-2"></i>System Information</h1>
+                <p class="text-muted">System diagnostics and health monitoring</p>
+            </div>
+            <div>
+                <button class="btn btn-outline-primary" onclick="refreshInfo()">
+                    <i class="fas fa-sync-alt me-2"></i>Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Overview -->
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>System Details</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tbody>
+                        <tr>
+                            <td class="text-muted"><strong>Hostname:</strong></td>
+                            <td><code>{{ system_info.hostname }}</code></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted"><strong>Platform:</strong></td>
+                            <td><code>{{ system_info.platform }}</code></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted"><strong>Python Version:</strong></td>
+                            <td><code>{{ system_info.python_version.split()[0] }}</code></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted"><strong>Keeper Version:</strong></td>
+                            <td><code>{{ system_info.flask_version }}</code></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted"><strong>Current Time (UTC):</strong></td>
+                            <td><code>{{ system_info.current_time }}</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-database me-2"></i>Database Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h3 class="text-primary mb-1">{{ db_stats.total_users }}</h3>
+                            <small class="text-muted">Total Users</small>
+                            <div class="mt-1">
+                                <small class="text-success">{{ db_stats.active_users }} active</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h3 class="text-success mb-1">{{ db_stats.total_secrets }}</h3>
+                            <small class="text-muted">Total Secrets</small>
+                            <div class="mt-1">
+                                <small class="text-success">{{ db_stats.active_secrets }} active</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h3 class="text-info mb-1">{{ db_stats.total_environments }}</h3>
+                            <small class="text-muted">Environments</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h3 class="text-warning mb-1">{{ db_stats.audit_log_entries }}</h3>
+                            <small class="text-muted">Audit Entries</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Python Environment Details -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fab fa-python me-2"></i>Python Environment</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Python Details</h6>
+                        <pre class="bg-light p-3 rounded small">{{ system_info.python_version }}</pre>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Platform Information</h6>
+                        <pre class="bg-light p-3 rounded small">{{ system_info.platform }}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Application Health -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-heartbeat me-2"></i>Application Health</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center p-3 bg-success bg-opacity-10 rounded">
+                            <div class="me-3">
+                                <i class="fas fa-check-circle fa-2x text-success"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-1">Application Status</h6>
+                                <span class="badge bg-success">Running</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center p-3 bg-success bg-opacity-10 rounded">
+                            <div class="me-3">
+                                <i class="fas fa-database fa-2x text-success"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-1">Database Connection</h6>
+                                <span class="badge bg-success">Connected</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center p-3 bg-warning bg-opacity-10 rounded">
+                            <div class="me-3">
+                                <i class="fas fa-key fa-2x text-warning"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-1">Encryption</h6>
+                                <span class="badge bg-warning">Local (Dev)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- External Services -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cloud me-2"></i>External Services</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center p-3 border rounded">
+                            <div class="me-3">
+                                <i class="fab fa-aws fa-2x text-warning"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">AWS Secrets Manager</h6>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    {% if aws_config.configured %}
+                                        {% if connection_status.aws.connected %}
+                                            <span class="badge bg-success">Connected</span>
+                                            <small class="text-muted">Successfully connected to AWS Secrets Manager</small>
+                                        {% else %}
+                                            <span class="badge bg-warning">Configured but Disconnected</span>
+                                            <small class="text-muted">{{ connection_status.aws.error or "Connection failed" }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary">Not Configured</span>
+                                        <small class="text-muted">Configure AWS credentials</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center p-3 border rounded">
+                            <div class="me-3">
+                                <i class="fas fa-vault fa-2x text-info"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">HashiCorp Vault</h6>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    {% if vault_config.configured %}
+                                        {% if connection_status.vault.connected %}
+                                            <span class="badge bg-success">Connected</span>
+                                            <small class="text-muted">Successfully connected to HashiCorp Vault</small>
+                                        {% else %}
+                                            <span class="badge bg-warning">Configured but Disconnected</span>
+                                            <small class="text-muted">Not connected to the HashiCorp Vault server</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary">Not Configured</span>
+                                        <small class="text-muted">Configure Vault endpoint</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Warnings -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-warning">
+            <h6><i class="fas fa-exclamation-triangle me-2"></i>Development Mode Warnings</h6>
+            <ul class="mb-0">
+                <li><strong>Local Key Management:</strong> Using local encryption keys. Configure KMS for production.</li>
+                <li><strong>Debug Mode:</strong> Application is running in debug mode. Disable for production.</li>
+                {% if not aws_config.configured and not vault_config.configured %}
+                <li><strong>External Services:</strong> AWS and Vault services are not configured.</li>
+                {% elif not aws_config.configured %}
+                <li><strong>External Services:</strong> AWS Secrets Manager is not configured.</li>
+                {% elif not vault_config.configured %}
+                <li><strong>External Services:</strong> HashiCorp Vault is not configured.</li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-tools me-2"></i>System Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-grid">
+                            <button class="btn btn-outline-primary" onclick="downloadLogs()" disabled>
+                                <i class="fas fa-download me-2"></i>Download System Logs
+                                <small class="d-block text-muted">Coming Soon</small>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-grid">
+                            <button class="btn btn-outline-secondary" onclick="exportConfig()" disabled>
+                                <i class="fas fa-file-export me-2"></i>Export Configuration
+                                <small class="d-block text-muted">Coming Soon</small>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function refreshInfo() {
+    window.location.reload();
+}
+
+function downloadLogs() {
+    alert('Log download functionality will be implemented in a future release.');
+}
+
+function exportConfig() {
+    alert('Configuration export functionality will be implemented in a future release.');
+}
+
+// Auto-refresh system time every 30 seconds
+setInterval(function() {
+    const timeElement = document.querySelector('code:contains("{{ system_info.current_time }}")');
+    if (timeElement) {
+        const now = new Date().toISOString();
+        timeElement.textContent = now;
+    }
+}, 30000);
+</script>
+{% endblock %}

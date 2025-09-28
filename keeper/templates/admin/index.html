@@ -152,9 +152,9 @@
                             <li><span class="text-muted">
                                 <i class="fas fa-heartbeat me-1"></i>Sync Status (Coming Soon)
                             </span></li>
-                            <li><span class="text-muted">
-                                <i class="fas fa-server me-1"></i>Backend Configuration (Coming Soon)
-                            </span></li>
+                            <li><a href="{{ url_for('admin.backend_config') }}" class="text-decoration-none">
+                                <i class="fas fa-server me-1"></i>Backend Configuration
+                            </a></li>
                             <li><span class="text-muted">
                                 <i class="fas fa-sync-alt me-1"></i>Force Full Sync (Coming Soon)
                             </span></li>
@@ -185,20 +185,44 @@
                 <div class="mb-3">
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <span>AWS Connection</span>
+                        {% if backend_status.aws.status == 'success' %}
                         <span class="badge bg-success">Connected</span>
+                        {% elif backend_status.aws.status == 'warning' %}
+                        <span class="badge bg-warning">Warning</span>
+                        {% else %}
+                        <span class="badge bg-danger">Not Configured</span>
+                        {% endif %}
                     </div>
                     <div class="progress" style="height: 4px;">
+                        {% if backend_status.aws.status == 'success' %}
                         <div class="progress-bar bg-success" style="width: 95%"></div>
+                        {% elif backend_status.aws.status == 'warning' %}
+                        <div class="progress-bar bg-warning" style="width: 60%"></div>
+                        {% else %}
+                        <div class="progress-bar bg-danger" style="width: 0%"></div>
+                        {% endif %}
                     </div>
                 </div>
-                
+
                 <div class="mb-3">
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <span>Vault Connection</span>
+                        {% if backend_status.vault.status == 'success' %}
                         <span class="badge bg-success">Connected</span>
+                        {% elif backend_status.vault.status == 'warning' %}
+                        <span class="badge bg-warning">Warning</span>
+                        {% else %}
+                        <span class="badge bg-danger">Not Configured</span>
+                        {% endif %}
                     </div>
                     <div class="progress" style="height: 4px;">
+                        {% if backend_status.vault.status == 'success' %}
                         <div class="progress-bar bg-success" style="width: 98%"></div>
+                        {% elif backend_status.vault.status == 'warning' %}
+                        <div class="progress-bar bg-warning" style="width: 60%"></div>
+                        {% else %}
+                        <div class="progress-bar bg-danger" style="width: 0%"></div>
+                        {% endif %}
                     </div>
                 </div>
                 

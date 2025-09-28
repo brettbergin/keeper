@@ -1,5 +1,6 @@
 """Pydantic schemas for user-related operations."""
 
+import uuid
 from datetime import datetime
 from typing import List, Optional
 
@@ -71,7 +72,7 @@ class UserUpdate(BaseModel):
 class UserResponse(BaseModel):
     """Schema for user response data."""
 
-    id: int
+    id: uuid.UUID
     email: str
     username: str
     full_name: str

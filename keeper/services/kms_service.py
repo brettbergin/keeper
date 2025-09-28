@@ -28,7 +28,7 @@ class DEKCache:
     """In-memory cache for Data Encryption Keys with TTL."""
 
     def __init__(self):
-        self._cache: Dict[str, KMSDataKey] = {}
+        self._cache: dict[str, KMSDataKey] = {}
         self._lock = Lock()
 
     def get(self, cache_key: str, ttl_seconds: int) -> Optional[KMSDataKey]:
@@ -84,7 +84,7 @@ class KMSService:
     def generate_data_key(
         self,
         key_id: Optional[str] = None,
-        encryption_context: Optional[Dict[str, str]] = None,
+        encryption_context: Optional[dict[str, str]] = None,
     ) -> KMSDataKey:
         """
         Generate a new data encryption key using KMS.
@@ -100,10 +100,35 @@ class KMSService:
             KMSServiceError: If key generation fails
         """
         try:
-            key_spec = key_id or current_app.config.get("kms_key_spec")
-            context = encryption_context or current_app.config.get(
-                "kms_encryption_context"
+            # Get KMS key ID from configuration
+            key_spec = (
+                key_id
+                or current_app.config.get("KMS_KEY_ID")
+                or current_app.config.get("KMS_KEY_ALIAS")
             )
+            if not key_spec:
+                raise KMSServiceError(
+                    "No KMS key configured. Set KMS_KEY_ID or KMS_KEY_ALIAS in configuration."
+                )
+
+            # Get encryption context - access the property correctly
+            if encryption_context:
+                context = encryption_context
+            else:
+                # Access the config property for encryption context
+                try:
+                    context = current_app.config.kms_encryption_context
+                except AttributeError:
+                    # Fallback to parsing JSON from config
+                    import json
+
+                    context_str = current_app.config.get(
+                        "KMS_ENCRYPTION_CONTEXT", '{"application":"keeper"}'
+                    )
+                    try:
+                        context = json.loads(context_str)
+                    except json.JSONDecodeError:
+                        context = {"application": "keeper"}
 
             current_app.logger.info(f"Generating data key using KMS key: {key_spec}")
 
@@ -166,9 +191,24 @@ class KMSService:
                 current_app.logger.debug("Using cached data key")
                 return cached_dek.plaintext_key
 
-            context = encryption_context or current_app.config.get(
-                "kms_encryption_context"
-            )
+            # Get encryption context - access the property correctly
+            if encryption_context:
+                context = encryption_context
+            else:
+                # Access the config property for encryption context
+                try:
+                    context = current_app.config.kms_encryption_context
+                except AttributeError:
+                    # Fallback to parsing JSON from config
+                    import json
+
+                    context_str = current_app.config.get(
+                        "KMS_ENCRYPTION_CONTEXT", '{"application":"keeper"}'
+                    )
+                    try:
+                        context = json.loads(context_str)
+                    except json.JSONDecodeError:
+                        context = {"application": "keeper"}
 
             current_app.logger.debug("Decrypting data key via KMS")
 
@@ -217,7 +257,16 @@ class KMSService:
             KMSServiceError: If rotation fails
         """
         try:
-            key_spec = key_id or current_app.config.get("kms_key_spec")
+            # Get KMS key ID from configuration
+            key_spec = (
+                key_id
+                or current_app.config.get("KMS_KEY_ID")
+                or current_app.config.get("KMS_KEY_ALIAS")
+            )
+            if not key_spec:
+                raise KMSServiceError(
+                    "No KMS key configured. Set KMS_KEY_ID or KMS_KEY_ALIAS in configuration."
+                )
 
             current_app.logger.info(f"Initiating key rotation for: {key_spec}")
 
@@ -260,7 +309,16 @@ class KMSService:
             KMSServiceError: If key info retrieval fails
         """
         try:
-            key_spec = key_id or current_app.config.get("kms_key_spec")
+            # Get KMS key ID from configuration
+            key_spec = (
+                key_id
+                or current_app.config.get("KMS_KEY_ID")
+                or current_app.config.get("KMS_KEY_ALIAS")
+            )
+            if not key_spec:
+                raise KMSServiceError(
+                    "No KMS key configured. Set KMS_KEY_ID or KMS_KEY_ALIAS in configuration."
+                )
 
             response = self.client.describe_key(KeyId=key_spec)
             key_metadata = response["KeyMetadata"]
@@ -300,7 +358,7 @@ class KMSService:
         key_id: str,
         grantee_principal: str,
         operations: list,
-        encryption_context: Optional[Dict[str, str]] = None,
+        encryption_context: Optional[dict[str, str]] = None,
     ) -> str:
         """
         Create a grant for a KMS key.

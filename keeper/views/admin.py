@@ -57,6 +57,19 @@ def index():
 
     from datetime import datetime
 
+    from ..services.sync_service import SyncService
+
+    # Test backend connectivity for system health
+    try:
+        sync_service = SyncService()
+        backend_status = sync_service.test_backends()
+    except Exception as e:
+        current_app.logger.warning(f"Failed to test backend connectivity: {e}")
+        backend_status = {
+            "aws": {"status": "error", "message": "Connection test failed"},
+            "vault": {"status": "error", "message": "Connection test failed"},
+        }
+
     # Create system_stats object that the template expects
     system_stats = {
         "total_users": total_users,
@@ -87,6 +100,7 @@ def index():
         rotation_needed=rotation_needed,
         out_of_sync=out_of_sync,
         system_stats=system_stats,  # Add the system_stats object
+        backend_status=backend_status,  # Add backend connectivity status
         now=datetime.utcnow(),
     )
 
@@ -127,6 +141,8 @@ def users():
     users_query = users_query.order_by(User.username)
     users = users_query.paginate(page=page, per_page=per_page, error_out=False)
 
+    current_user = get_current_user()
+
     return render_template(
         "admin/users.html",
         users=users,
@@ -135,6 +151,7 @@ def users():
         role_filter=role_filter,
         auth_method_filter=auth_method_filter,
         active_filter=active_filter,
+        current_user=current_user,
     )
 
 
@@ -256,7 +273,7 @@ def create_user():
     )
 
 
-@admin_bp.route("/users/<int:id>")
+@admin_bp.route("/users/<uuid:id>")
 @require_admin
 def user_detail(id):
     """Show user details."""
@@ -300,7 +317,7 @@ def user_detail(id):
     )
 
 
-@admin_bp.route("/users/<int:id>/edit-role", methods=["GET", "POST"])
+@admin_bp.route("/users/<uuid:id>/edit-role", methods=["GET", "POST"])
 @require_admin
 def edit_user_role(id):
     """Edit user role and permissions."""
@@ -370,7 +387,7 @@ def edit_user_role(id):
     )
 
 
-@admin_bp.route("/users/<int:id>/toggle-active", methods=["POST"])
+@admin_bp.route("/users/<uuid:id>/toggle-active", methods=["POST"])
 @require_admin
 def toggle_user_active(id):
     """Toggle user active status."""
@@ -415,7 +432,7 @@ def audit_logs():
     action = request.args.get("action")
     result = request.args.get("result")
     resource_type = request.args.get("resource_type")
-    user_id = request.args.get("user_id", type=int)
+    user_id = request.args.get("user_id")
 
     query = AuditLog.query
 
@@ -481,6 +498,179 @@ def system_info():
         "audit_log_entries": AuditLog.query.count(),
     }
 
+    # Get backend configuration status (reuse the same logic as config page)
+    aws_config = {
+        "configured": bool(
+            current_app.config.get("AWS_REGION")
+            and current_app.config.get("AWS_ACCESS_KEY_ID")
+            and current_app.config.get("AWS_SECRET_ACCESS_KEY")
+        ),
+    }
+
+    vault_config = {
+        "configured": bool(
+            current_app.config.get("VAULT_URL")
+            and current_app.config.get("VAULT_TOKEN")
+        ),
+    }
+
+    # Test connections to get real-time status
+    connection_status = _test_backend_connections()
+
     return render_template(
-        "admin/system_info.html", system_info=system_info, db_stats=db_stats
+        "admin/system_info.html",
+        system_info=system_info,
+        db_stats=db_stats,
+        aws_config=aws_config,
+        vault_config=vault_config,
+        connection_status=connection_status,
     )
+
+
+@admin_bp.route("/config", methods=["GET", "POST"])
+@require_admin
+def backend_config():
+    """Backend configuration management."""
+    if request.method == "POST":
+        try:
+            # Get form data
+            aws_region = request.form.get("aws_region", "").strip()
+            aws_access_key_id = request.form.get("aws_access_key_id", "").strip()
+            aws_secret_access_key = request.form.get(
+                "aws_secret_access_key", ""
+            ).strip()
+            kms_key_id = request.form.get("kms_key_id", "").strip()
+            kms_region = request.form.get("kms_region", "").strip()
+
+            vault_url = request.form.get("vault_url", "").strip()
+            vault_token = request.form.get("vault_token", "").strip()
+            vault_mount_point = request.form.get("vault_mount_point", "").strip()
+
+            # Update Flask config (this would need to be persisted to a config file in production)
+            if aws_region:
+                current_app.config["AWS_REGION"] = aws_region
+            if aws_access_key_id:
+                current_app.config["AWS_ACCESS_KEY_ID"] = aws_access_key_id
+            if aws_secret_access_key:
+                current_app.config["AWS_SECRET_ACCESS_KEY"] = aws_secret_access_key
+            if kms_key_id:
+                current_app.config["KMS_KEY_ID"] = kms_key_id
+            if kms_region:
+                current_app.config["KMS_REGION"] = kms_region
+
+            if vault_url:
+                current_app.config["VAULT_URL"] = vault_url
+            if vault_token:
+                current_app.config["VAULT_TOKEN"] = vault_token
+            if vault_mount_point:
+                current_app.config["VAULT_MOUNT_POINT"] = vault_mount_point
+
+            flash("Backend configuration updated successfully", "success")
+
+            # Log the configuration change
+            AuditLog.log_action(
+                action=AuditAction.UPDATE,
+                result=AuditResult.SUCCESS,
+                resource_type="system_config",
+                resource_id=None,
+                resource_name="backend_configuration",
+                user_id=get_current_user().id,
+                username=get_current_user().username,
+                ip_address=request.remote_addr,
+                details={
+                    "action": "backend_config_update",
+                    "aws_configured": bool(aws_region and aws_access_key_id),
+                    "vault_configured": bool(vault_url and vault_token),
+                    "kms_configured": bool(kms_key_id),
+                },
+            )
+
+        except Exception as e:
+            current_app.logger.error(f"Error updating backend configuration: {str(e)}")
+            flash("An error occurred while updating the configuration", "error")
+
+    # Get current configuration status
+    aws_config = {
+        "region": current_app.config.get("AWS_REGION", ""),
+        "access_key_id": current_app.config.get("AWS_ACCESS_KEY_ID", ""),
+        "secret_access_key": (
+            "***" if current_app.config.get("AWS_SECRET_ACCESS_KEY") else ""
+        ),
+        "configured": bool(
+            current_app.config.get("AWS_REGION")
+            and current_app.config.get("AWS_ACCESS_KEY_ID")
+            and current_app.config.get("AWS_SECRET_ACCESS_KEY")
+        ),
+    }
+
+    vault_config = {
+        "url": current_app.config.get("VAULT_URL", ""),
+        "token": "***" if current_app.config.get("VAULT_TOKEN") else "",
+        "mount_point": current_app.config.get("VAULT_MOUNT_POINT", ""),
+        "configured": bool(
+            current_app.config.get("VAULT_URL")
+            and current_app.config.get("VAULT_TOKEN")
+        ),
+    }
+
+    kms_config = {
+        "key_id": current_app.config.get("KMS_KEY_ID", ""),
+        "region": current_app.config.get("KMS_REGION", ""),
+        "configured": bool(current_app.config.get("KMS_KEY_ID")),
+    }
+
+    # Test connections
+    connection_status = _test_backend_connections()
+
+    return render_template(
+        "admin/backend_config.html",
+        aws_config=aws_config,
+        vault_config=vault_config,
+        kms_config=kms_config,
+        connection_status=connection_status,
+    )
+
+
+def _test_backend_connections():
+    """Test connections to external backends."""
+    from datetime import datetime
+
+    from ..services.aws_secrets import AWSSecretsManager
+    from ..services.vault_client import VaultClient
+
+    status = {
+        "aws": {"connected": False, "error": None, "last_test": None},
+        "vault": {"connected": False, "error": None, "last_test": None},
+    }
+
+    # Test AWS connection
+    try:
+        aws_client = AWSSecretsManager()
+        test_result = aws_client.test_connection()
+        status["aws"]["connected"] = test_result.get("status") == "success"
+        status["aws"]["error"] = (
+            test_result.get("message")
+            if test_result.get("status") != "success"
+            else None
+        )
+        status["aws"]["last_test"] = datetime.utcnow().isoformat()
+    except Exception as e:
+        status["aws"]["error"] = str(e)
+        status["aws"]["last_test"] = datetime.utcnow().isoformat()
+
+    # Test Vault connection
+    try:
+        vault_client = VaultClient()
+        test_result = vault_client.test_connection()
+        status["vault"]["connected"] = test_result.get("status") == "success"
+        status["vault"]["error"] = (
+            test_result.get("message")
+            if test_result.get("status") != "success"
+            else None
+        )
+        status["vault"]["last_test"] = datetime.utcnow().isoformat()
+    except Exception as e:
+        status["vault"]["error"] = str(e)
+        status["vault"]["last_test"] = datetime.utcnow().isoformat()
+
+    return status

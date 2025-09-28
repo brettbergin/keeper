@@ -516,12 +516,12 @@ def pending(environment, backend, dry_run):
                 click.echo("\nDRY RUN - No changes will be made:\n")
                 for secret in pending_secrets:
                     aws_status = (
-                        "✓"
+                        "PENDING"
                         if secret.aws_sync_status == SyncStatus.SYNC_PENDING
                         else "-"
                     )
                     vault_status = (
-                        "✓"
+                        "PENDING"
                         if secret.vault_sync_status == SyncStatus.SYNC_PENDING
                         else "-"
                     )
@@ -578,6 +578,143 @@ def pending(environment, backend, dry_run):
 
         except Exception as e:
             click.echo(f"Sync processing failed: {str(e)}", err=True)
+            return 1
+
+
+@sync.command()
+@click.option("--environment", help="Verify only secrets in specific environment")
+@click.option("--backend", multiple=True, help="Verify specific backends (aws, vault)")
+@click.option("--fix", is_flag=True, help="Fix incorrect sync statuses found")
+def verify_status(environment, backend, fix):
+    """Verify sync status in database matches reality in backends."""
+    from keeper.app import create_app
+    from keeper.models.environment import Environment
+    from keeper.models.secret import Secret, SyncStatus
+    from keeper.services.aws_secrets import AWSSecretsManager
+    from keeper.services.vault_client import VaultClient
+
+    app = create_app()
+    with app.app_context():
+        try:
+            # Build query for all active secrets
+            query = Secret.query.filter_by(is_active=True)
+
+            if environment:
+                env = Environment.find_by_name(environment)
+                if not env:
+                    click.echo(f"Environment '{environment}' not found", err=True)
+                    return 1
+                query = query.filter_by(environment_id=env.id)
+                click.echo(f"Verifying sync status in environment: {environment}")
+
+            secrets = query.all()
+            backends_to_check = list(backend) if backend else ["aws", "vault"]
+
+            click.echo(
+                f"Verifying {len(secrets)} secrets against backends: {', '.join(backends_to_check)}"
+            )
+
+            aws_client = AWSSecretsManager() if "aws" in backends_to_check else None
+            vault_client = VaultClient() if "vault" in backends_to_check else None
+
+            mismatches = []
+            total_checked = 0
+
+            for secret in secrets:
+                total_checked += 1
+                current_version = secret.current_version
+                if not current_version:
+                    continue
+
+                # Check AWS
+                if aws_client and "aws" in backends_to_check:
+                    try:
+                        aws_secret_name = secret.get_aws_secret_name()
+                        aws_exists = aws_client.secret_exists(aws_secret_name)
+                        db_says_synced = secret.aws_sync_status == SyncStatus.SYNCED
+
+                        if aws_exists != db_says_synced:
+                            mismatches.append(
+                                {
+                                    "secret": secret.full_name,
+                                    "backend": "AWS",
+                                    "db_status": secret.aws_sync_status.value,
+                                    "actual_exists": aws_exists,
+                                    "issue": (
+                                        "exists in AWS"
+                                        if aws_exists
+                                        else "missing from AWS"
+                                    ),
+                                }
+                            )
+                    except Exception as e:
+                        click.echo(f"  Error checking AWS for {secret.full_name}: {e}")
+
+                # Check Vault
+                if vault_client and "vault" in backends_to_check:
+                    try:
+                        vault_path = secret.get_vault_path()
+                        vault_exists = vault_client.secret_exists(vault_path)
+                        db_says_synced = secret.vault_sync_status == SyncStatus.SYNCED
+
+                        if vault_exists != db_says_synced:
+                            mismatches.append(
+                                {
+                                    "secret": secret.full_name,
+                                    "backend": "Vault",
+                                    "db_status": secret.vault_sync_status.value,
+                                    "actual_exists": vault_exists,
+                                    "issue": (
+                                        "exists in Vault"
+                                        if vault_exists
+                                        else "missing from Vault"
+                                    ),
+                                }
+                            )
+                    except Exception as e:
+                        click.echo(
+                            f"  Error checking Vault for {secret.full_name}: {e}"
+                        )
+
+            if mismatches:
+                click.echo(f"\nFound {len(mismatches)} sync status mismatches:")
+                for mismatch in mismatches:
+                    click.echo(
+                        f"  {mismatch['secret']} ({mismatch['backend']}): DB says '{mismatch['db_status']}' but {mismatch['issue']}"
+                    )
+
+                if fix:
+                    click.echo(f"\nFixing {len(mismatches)} sync status mismatches...")
+                    for mismatch in mismatches:
+                        secret = Secret.query.filter_by(
+                            name=mismatch["secret"].split("/")[-1]
+                        ).first()
+                        if secret:
+                            if mismatch["backend"] == "AWS":
+                                secret.aws_sync_status = (
+                                    SyncStatus.SYNCED
+                                    if mismatch["actual_exists"]
+                                    else SyncStatus.NOT_SYNCED
+                                )
+                            elif mismatch["backend"] == "Vault":
+                                secret.vault_sync_status = (
+                                    SyncStatus.SYNCED
+                                    if mismatch["actual_exists"]
+                                    else SyncStatus.NOT_SYNCED
+                                )
+                            secret.save()
+                    click.echo("✓ Sync statuses fixed")
+                else:
+                    click.echo("\nUse --fix to correct these mismatches")
+            else:
+                click.echo("✓ All sync statuses are accurate")
+
+            click.echo(
+                f"\nVerification complete: {total_checked} secrets checked, {len(mismatches)} mismatches found"
+            )
+
+        except Exception as e:
+            click.echo(f"Verification failed: {str(e)}", err=True)
             return 1
 
 

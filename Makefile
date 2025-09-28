@@ -147,7 +147,8 @@ db-reset-demo: clean-db populate-demo
 
 # Clean database
 clean-db:
-	rm -rf instance/
+	rm -rf instance/keeper_dev.db
+	touch instance/keeper_dev.db
 	@echo "Database cleaned!"
 
 # Docker operations

@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Edit User Role - {{ user.username }} - Admin - Keeper{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-user-edit me-2"></i>Edit User Role</h1>
+                <p class="text-muted">Change role and permissions for {{ user.full_name or user.username }}</p>
+            </div>
+            <div>
+                <a href="{{ url_for('admin.user_detail', id=user.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to User Detail
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Role Configuration</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <!-- Current Role Display -->
+                    <div class="alert alert-info mb-4">
+                        <strong>Current Role:</strong>
+                        {% if user.role.value == 'admin' %}
+                        <span class="badge bg-danger ms-2">{{ user.role.value.title() }}</span>
+                        {% elif user.role.value == 'manager' %}
+                        <span class="badge bg-warning ms-2">{{ user.role.value.title() }}</span>
+                        {% else %}
+                        <span class="badge bg-info ms-2">{{ user.role.value.title() }}</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Role Selection -->
+                    <div class="mb-4">
+                        <label class="form-label"><strong>New Role</strong></label>
+                        {% for role in user_roles %}
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="role" id="role_{{ role.value }}"
+                                   value="{{ role.value }}" {% if role == user.role %}checked{% endif %}
+                                   onchange="toggleManagedEnvironments()">
+                            <label class="form-check-label" for="role_{{ role.value }}">
+                                <strong>
+                                    {% if role.value == 'admin' %}
+                                    <i class="fas fa-crown text-danger me-2"></i>Administrator
+                                    {% elif role.value == 'manager' %}
+                                    <i class="fas fa-user-tie text-warning me-2"></i>Manager
+                                    {% else %}
+                                    <i class="fas fa-user text-info me-2"></i>User
+                                    {% endif %}
+                                </strong>
+                                <div class="text-muted small mt-1">
+                                    {% if role.value == 'admin' %}
+                                    Full system access to all environments and features
+                                    {% elif role.value == 'manager' %}
+                                    Can approve operations and manage specific environments
+                                    {% else %}
+                                    Basic access to development and staging environments
+                                    {% endif %}
+                                </div>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Managed Environments (for Managers only) -->
+                    <div id="managed-environments-section" style="display: {% if user.role.value == 'manager' %}block{% else %}none{% endif %};">
+                        <div class="card border-warning">
+                            <div class="card-header bg-warning bg-opacity-10">
+                                <h6 class="mb-0"><i class="fas fa-server me-2"></i>Managed Environments</h6>
+                                <small class="text-muted">Select which environments this manager can oversee</small>
+                            </div>
+                            <div class="card-body">
+                                {% if environments %}
+                                {% for env in environments %}
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="managed_environments"
+                                           id="env_{{ env.id }}" value="{{ env.name }}"
+                                           {% if env.name in user.get_managed_environments() %}checked{% endif %}>
+                                    <label class="form-check-label" for="env_{{ env.id }}">
+                                        <strong>{{ env.name.title() }}</strong>
+                                        <span class="badge bg-{{ 'danger' if env.is_production else 'secondary' }} ms-2">
+                                            {{ 'Production' if env.is_production else 'Non-Production' }}
+                                        </span>
+                                        {% if env.description %}
+                                        <div class="text-muted small">{{ env.description }}</div>
+                                        {% endif %}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                                {% else %}
+                                <p class="text-muted mb-0">No environments available</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Warning for Admin Changes -->
+                    {% if user.role.value == 'admin' %}
+                    <div class="alert alert-warning mt-4">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong> This user currently has Administrator privileges. Changing their role will remove full system access.
+                    </div>
+                    {% endif %}
+
+                    <!-- Submit Buttons -->
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-2"></i>Update Role
+                        </button>
+                        <a href="{{ url_for('admin.user_detail', id=user.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Info Sidebar -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>User Information</h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless table-sm">
+                    <tr>
+                        <th>Username:</th>
+                        <td>{{ user.username }}</td>
+                    </tr>
+                    <tr>
+                        <th>Full Name:</th>
+                        <td>{{ user.full_name or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Email:</th>
+                        <td>{{ user.email }}</td>
+                    </tr>
+                    <tr>
+                        <th>Status:</th>
+                        <td>
+                            {% if user.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Auth Method:</th>
+                        <td><span class="badge bg-secondary">{{ user.auth_method.value.title() }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Created:</th>
+                        <td>{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else '-' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Role Permissions Guide -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-question-circle me-2"></i>Role Permissions</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong class="text-info"><i class="fas fa-user me-1"></i> User</strong>
+                    <ul class="small text-muted mb-0 mt-1">
+                        <li>Access dev/staging secrets</li>
+                        <li>Create and edit secrets</li>
+                        <li>View assigned environments</li>
+                    </ul>
+                </div>
+                <div class="mb-3">
+                    <strong class="text-warning"><i class="fas fa-user-tie me-1"></i> Manager</strong>
+                    <ul class="small text-muted mb-0 mt-1">
+                        <li>All User permissions</li>
+                        <li>Approve secret changes</li>
+                        <li>Manage assigned environments</li>
+                        <li>View environment metrics</li>
+                    </ul>
+                </div>
+                <div>
+                    <strong class="text-danger"><i class="fas fa-crown me-1"></i> Administrator</strong>
+                    <ul class="small text-muted mb-0 mt-1">
+                        <li>Full system access</li>
+                        <li>User management</li>
+                        <li>System configuration</li>
+                        <li>All environments</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleManagedEnvironments() {
+    const managerRadio = document.getElementById('role_manager');
+    const managedEnvSection = document.getElementById('managed-environments-section');
+
+    if (managerRadio && managerRadio.checked) {
+        managedEnvSection.style.display = 'block';
+    } else {
+        managedEnvSection.style.display = 'none';
+        // Uncheck all environment checkboxes when not manager
+        const checkboxes = document.querySelectorAll('input[name="managed_environments"]');
+        checkboxes.forEach(cb => cb.checked = false);
+    }
+}
+</script>
+{% endblock %}

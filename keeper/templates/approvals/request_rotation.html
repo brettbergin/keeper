@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Request Rotation Approval - {{ secret.name }} - Keeper{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-sync-alt me-2"></i>Request Rotation Approval</h1>
+                <p class="text-muted">Request manager approval for secret rotation</p>
+            </div>
+            <div>
+                <a href="{{ url_for('secrets.detail', id=secret.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Secret
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Rotation Request</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <!-- Secret Information -->
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-key me-2"></i>Secret: {{ secret.display_name or secret.name }}</h6>
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <strong>Environment:</strong>
+                                <span class="badge bg-{{ 'danger' if secret.environment.is_production else 'secondary' }} ms-2">
+                                    {{ secret.environment.name.title() }}
+                                </span>
+                            </div>
+                            <div class="col-sm-6">
+                                <strong>Type:</strong> {{ secret.secret_type.value.title() }}
+                            </div>
+                        </div>
+                        {% if secret.description %}
+                        <div class="mt-2"><strong>Description:</strong> {{ secret.description }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Reason for Request -->
+                    <div class="mb-4">
+                        <label for="reason" class="form-label">Reason for Rotation <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="reason" name="reason" rows="3" required
+                                  placeholder="Explain why this secret needs to be rotated...">{{ request.form.get('reason', '') }}</textarea>
+                        <div class="form-text">Provide a clear business justification for the rotation request.</div>
+                    </div>
+
+                    <!-- Rotation Options -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-cogs me-2"></i>Rotation Configuration</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="generation_method" class="form-label">Generation Method</label>
+                                        <select class="form-select" id="generation_method" name="generation_method">
+                                            <option value="auto" selected>Auto-Generate (Recommended)</option>
+                                            {% if user.can_manually_enter_secrets() %}
+                                            <option value="manual">Manual Entry</option>
+                                            {% endif %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="complexity" class="form-label">Complexity</label>
+                                        <select class="form-select" id="complexity" name="complexity">
+                                            <option value="complex" selected>Complex (Recommended)</option>
+                                            <option value="simple">Simple</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="length" class="form-label">Length</label>
+                                        <input type="number" class="form-control" id="length" name="length"
+                                               value="32" min="8" max="128">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3" id="manual_entry_section" style="display: none;">
+                                <label for="new_value" class="form-label">New Secret Value</label>
+                                <textarea class="form-control" id="new_value" name="new_value" rows="4"
+                                          placeholder="Enter the new secret value...">{{ request.form.get('new_value', '') }}</textarea>
+                                <div class="form-text">Only available for administrators</div>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="immediate_activate"
+                                       name="immediate_activate" checked>
+                                <label class="form-check-label" for="immediate_activate">
+                                    Activate immediately after approval
+                                </label>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="auto_sync"
+                                       name="auto_sync" checked>
+                                <label class="form-check-label" for="auto_sync">
+                                    Auto-sync to external backends
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Buttons -->
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-2"></i>Submit Request
+                        </button>
+                        <a href="{{ url_for('secrets.detail', id=secret.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Sidebar -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-question-circle me-2"></i>Approval Process</h6>
+            </div>
+            <div class="card-body">
+                <div class="small">
+                    <h6>Why is approval required?</h6>
+                    <p>Secret rotation in {{ secret.environment.name }} environment requires manager approval to ensure proper oversight and security.</p>
+
+                    <h6>What happens next?</h6>
+                    <ol>
+                        <li>Your request will be submitted to the approval queue</li>
+                        <li>A manager will review and approve/reject the request</li>
+                        <li>If approved, you can execute the rotation</li>
+                        <li>The secret will be rotated according to your specifications</li>
+                    </ol>
+
+                    <h6>Approval Timeline</h6>
+                    <p>Most requests are processed within 24 hours. Urgent requests should be escalated through appropriate channels.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('generation_method').addEventListener('change', function() {
+    const manualSection = document.getElementById('manual_entry_section');
+    if (this.value === 'manual') {
+        manualSection.style.display = 'block';
+    } else {
+        manualSection.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

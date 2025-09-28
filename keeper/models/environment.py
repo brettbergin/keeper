@@ -57,7 +57,7 @@ class Environment(BaseModel):
     @property
     def full_aws_prefix(self) -> str:
         """Get the full AWS Secrets Manager prefix for this environment."""
-        return f"{self.aws_secrets_prefix or self.name}/"
+        return f"keeper/{self.aws_secrets_prefix or self.name}/"
 
     @property
     def full_vault_prefix(self) -> str:

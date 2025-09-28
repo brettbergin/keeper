@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Execute Approval - {{ approval.resource_name }} - Keeper{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-play me-2"></i>Execute Approved Request</h1>
+                <p class="text-muted">{{ approval.approval_type.value.replace('_', ' ').title() }} - {{ approval.resource_name }}</p>
+            </div>
+            <div>
+                <a href="{{ url_for('approvals.detail', approval_id=approval.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Request
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Execution Confirmation</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-warning me-2"></i>Warning: This action cannot be undone</h6>
+                    <p class="mb-0">You are about to execute the approved {{ approval.approval_type.value.replace('_', ' ') }} for <strong>{{ approval.resource_name }}</strong> in the <strong>{{ approval.environment_name }}</strong> environment.</p>
+                </div>
+
+                <!-- Execution Details -->
+                <div class="mb-4">
+                    <h6>Execution Summary:</h6>
+                    <ul>
+                        {% if approval.approval_type.value == 'secret_rotation' %}
+                        <li>A new secret version will be generated</li>
+                        <li>The new version will become the active version</li>
+                        {% if approval.get_request_details().get('auto_sync') %}
+                        <li>Changes will be synchronized to external backends (AWS, Vault)</li>
+                        {% endif %}
+                        <li>Previous versions will remain available for rollback</li>
+                        {% elif approval.approval_type.value == 'secret_delete' %}
+                        <li>The secret will be permanently deleted</li>
+                        <li>All versions and history will be removed</li>
+                        <li>External backend copies will be deleted</li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                {% if approval.approval_comment %}
+                <div class="mb-4">
+                    <h6>Approval Comment:</h6>
+                    <div class="border-start border-3 border-success ps-3">
+                        <em>"{{ approval.approval_comment }}"</em>
+                        <div class="text-muted small">- {{ approval.approver_username }}, {{ approval.approved_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Execution Form -->
+                <form method="POST">
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" id="confirm_execution" required>
+                        <label class="form-check-label text-danger" for="confirm_execution">
+                            <strong>I understand this action cannot be undone and want to proceed</strong>
+                        </label>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-play me-2"></i>Execute Now
+                        </button>
+                        <a href="{{ url_for('approvals.detail', approval_id=approval.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approval Information Sidebar -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Approval Information</h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless table-sm">
+                    <tr>
+                        <th>Request ID:</th>
+                        <td><code>{{ approval.id }}</code></td>
+                    </tr>
+                    <tr>
+                        <th>Status:</th>
+                        <td>
+                            {% if approval.status.value == 'approved' %}
+                            <span class="badge bg-success">Approved</span>
+                            {% else %}
+                            <span class="badge bg-warning">{{ approval.status.value.title() }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Approved By:</th>
+                        <td>{{ approval.approver_username or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Approved:</th>
+                        <td>{{ approval.approved_at.strftime('%Y-%m-%d %H:%M') if approval.approved_at else '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Executed:</th>
+                        <td>
+                            {% if approval.executed %}
+                            <span class="text-success">
+                                <i class="fas fa-check me-1"></i>{{ approval.executed_at.strftime('%Y-%m-%d %H:%M') }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">Not executed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        {% if approval.get_request_details() %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-cogs me-2"></i>Request Configuration</h6>
+            </div>
+            <div class="card-body">
+                <div class="small">
+                    {% for key, value in approval.get_request_details().items() %}
+                    <div class="mb-1">
+                        <strong>{{ key.replace('_', ' ').title() }}:</strong>
+                        {% if value is sameas true %}
+                        <span class="text-success">Yes</span>
+                        {% elif value is sameas false %}
+                        <span class="text-muted">No</span>
+                        {% else %}
+                        {{ value }}
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

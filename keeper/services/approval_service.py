@@ -57,13 +57,13 @@ class ApprovalService:
             action=AuditAction.CREATE,
             result=AuditResult.SUCCESS,
             resource_type="approval_request",
-            resource_id=approval.id,
+            resource_id=str(approval.id),
             resource_name=f"rotation:{secret.name}",
-            user_id=requester.id,
+            user_id=str(requester.id),
             username=requester.username,
             details={
                 "approval_type": "secret_rotation",
-                "secret_id": secret.id,
+                "secret_id": str(secret.id),
                 "environment": secret.environment.name,
                 "reason": reason,
             },
@@ -98,7 +98,7 @@ class ApprovalService:
             action=AuditAction.UPDATE,
             result=AuditResult.SUCCESS,
             resource_type="approval",
-            resource_id=approval.id,
+            resource_id=str(approval.id),
             resource_name=f"{approval.approval_type.value}:{approval.resource_name}",
             user_id=approver.id,
             username=approver.username,
@@ -139,7 +139,7 @@ class ApprovalService:
             action=AuditAction.UPDATE,
             result=AuditResult.FAILURE,
             resource_type="approval",
-            resource_id=approval.id,
+            resource_id=str(approval.id),
             resource_name=f"{approval.approval_type.value}:{approval.resource_name}",
             user_id=approver.id,
             username=approver.username,
@@ -181,12 +181,38 @@ class ApprovalService:
             # Execute the rotation based on stored details
             from ..models.secret_version import SecretVersion
 
+            # Determine the value based on generation method
+            generation_method = rotation_details.get("generation_method", "manual")
+            if generation_method == "auto":
+                # Auto-generate value using stored parameters
+                from ..utils.crypto import generate_api_key, generate_password
+
+                length = rotation_details.get("length", 32)
+                complexity = rotation_details.get("complexity", "complex")
+
+                if secret.secret_type.value == "password":
+                    value = generate_password(
+                        length, include_symbols=(complexity == "complex")
+                    )
+                elif secret.secret_type.value == "api_key":
+                    value = generate_api_key(length)
+                else:
+                    # For other types, use password generator as fallback
+                    value = generate_password(
+                        length, include_symbols=(complexity == "complex")
+                    )
+            else:
+                # Use pre-provided value for manual entry
+                value = rotation_details.get("new_value")
+                if not value:
+                    raise ValueError("No value provided for manual rotation")
+
             # Create new version with the approved parameters
             new_version = SecretVersion.create_version(
                 secret_id=secret.id,
-                value=rotation_details.get("new_value"),
+                value=value,
                 created_by_id=executor.id,
-                generation_method=rotation_details.get("generation_method", "manual"),
+                generation_method=generation_method,
                 generation_params=rotation_details.get("generation_params"),
                 make_current=True,
             )
@@ -205,12 +231,12 @@ class ApprovalService:
                 action=AuditAction.ROTATE,
                 result=AuditResult.SUCCESS,
                 resource_type="secret",
-                resource_id=secret.id,
+                resource_id=str(secret.id),
                 resource_name=secret.name,
-                user_id=executor.id,
+                user_id=str(executor.id),
                 username=executor.username,
                 details={
-                    "approval_id": approval.id,
+                    "approval_id": str(approval.id),
                     "new_version": new_version.version_number,
                     "approved_by": approval.approver_username,
                     "environment": secret.environment.name,
@@ -224,8 +250,8 @@ class ApprovalService:
 
             return {
                 "success": True,
-                "approval_id": approval.id,
-                "secret_id": secret.id,
+                "approval_id": str(approval.id),
+                "secret_id": str(secret.id),
                 "new_version": new_version.version_number,
                 "message": "Rotation completed successfully",
             }
@@ -242,10 +268,10 @@ class ApprovalService:
                 resource_type="secret",
                 resource_id=approval.resource_id,
                 resource_name=approval.resource_name,
-                user_id=executor.id,
+                user_id=str(executor.id),
                 username=executor.username,
                 details={
-                    "approval_id": approval.id,
+                    "approval_id": str(approval.id),
                     "error": str(e),
                     "environment": approval.environment_name,
                 },

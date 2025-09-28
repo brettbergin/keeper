@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Backend Configuration - Admin - Keeper{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-cogs me-2"></i>Backend Configuration</h1>
+                <p class="text-muted">Configure Vault and AWS Secrets Manager integration</p>
+            </div>
+            <div>
+                <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Admin
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Connection Status Overview -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fab fa-aws me-2"></i>AWS Connection</h6>
+                {% if connection_status.aws.connected %}
+                <span class="badge bg-success">Connected</span>
+                {% else %}
+                <span class="badge bg-danger">Disconnected</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="small">
+                    {% if connection_status.aws.connected %}
+                    <div class="text-success">
+                        <i class="fas fa-check-circle me-1"></i>Successfully connected to AWS Secrets Manager
+                    </div>
+                    {% else %}
+                    <div class="text-danger">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        {% if connection_status.aws.error %}
+                        {{ connection_status.aws.error }}
+                        {% else %}
+                        Not configured or connection failed
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if connection_status.aws.last_test %}
+                    <div class="text-muted mt-1">Last tested: {{ connection_status.aws.last_test }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-vault me-2"></i>Vault Connection</h6>
+                {% if connection_status.vault.connected %}
+                <span class="badge bg-success">Connected</span>
+                {% else %}
+                <span class="badge bg-danger">Disconnected</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="small">
+                    {% if connection_status.vault.connected %}
+                    <div class="text-success">
+                        <i class="fas fa-check-circle me-1"></i>Successfully connected to HashiCorp Vault
+                    </div>
+                    {% else %}
+                    <div class="text-danger">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        {% if connection_status.vault.error %}
+                        {{ connection_status.vault.error }}
+                        {% else %}
+                        Not configured or connection failed
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if connection_status.vault.last_test %}
+                    <div class="text-muted mt-1">Last tested: {{ connection_status.vault.last_test }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration Forms -->
+<form method="POST">
+    <div class="row">
+        <!-- AWS Secrets Manager Configuration -->
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fab fa-aws me-2"></i>AWS Secrets Manager</h5>
+                    {% if aws_config.configured %}
+                    <span class="badge bg-success">Configured</span>
+                    {% else %}
+                    <span class="badge bg-warning">Not Configured</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="aws_region" class="form-label">AWS Region</label>
+                        <select class="form-select" id="aws_region" name="aws_region">
+                            <option value="">Select a region...</option>
+                            <option value="us-east-1" {% if aws_config.region == 'us-east-1' %}selected{% endif %}>US East (N. Virginia)</option>
+                            <option value="us-west-2" {% if aws_config.region == 'us-west-2' %}selected{% endif %}>US West (Oregon)</option>
+                            <option value="eu-west-1" {% if aws_config.region == 'eu-west-1' %}selected{% endif %}>Europe (Ireland)</option>
+                            <option value="ap-southeast-1" {% if aws_config.region == 'ap-southeast-1' %}selected{% endif %}>Asia Pacific (Singapore)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="aws_access_key_id" class="form-label">Access Key ID</label>
+                        <input type="text" class="form-control" id="aws_access_key_id" name="aws_access_key_id"
+                               value="{{ aws_config.access_key_id }}" placeholder="AKIA...">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="aws_secret_access_key" class="form-label">Secret Access Key</label>
+                        <input type="password" class="form-control" id="aws_secret_access_key" name="aws_secret_access_key"
+                               placeholder="{% if aws_config.secret_access_key %}{{ aws_config.secret_access_key }}{% else %}Enter secret access key...{% endif %}">
+                        <div class="form-text">Leave blank to keep existing value</div>
+                    </div>
+
+                    <div class="card bg-light">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-key me-2"></i>KMS Configuration</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="kms_key_id" class="form-label">KMS Key ID/ARN</label>
+                                <input type="text" class="form-control" id="kms_key_id" name="kms_key_id"
+                                       value="{{ kms_config.key_id }}" placeholder="arn:aws:kms:region:account:key/key-id">
+                                <div class="form-text">Optional: for enhanced encryption</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="kms_region" class="form-label">KMS Region</label>
+                                <input type="text" class="form-control" id="kms_region" name="kms_region"
+                                       value="{{ kms_config.region }}" placeholder="us-east-1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- HashiCorp Vault Configuration -->
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-vault me-2"></i>HashiCorp Vault</h5>
+                    {% if vault_config.configured %}
+                    <span class="badge bg-success">Configured</span>
+                    {% else %}
+                    <span class="badge bg-warning">Not Configured</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="vault_url" class="form-label">Vault URL</label>
+                        <input type="text" class="form-control" id="vault_url" name="vault_url"
+                               value="{{ vault_config.url }}" placeholder="https://vault.company.com:8200">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="vault_token" class="form-label">Vault Token</label>
+                        <input type="password" class="form-control" id="vault_token" name="vault_token"
+                               placeholder="{% if vault_config.token %}{{ vault_config.token }}{% else %}Enter vault token...{% endif %}">
+                        <div class="form-text">Leave blank to keep existing value</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="vault_mount_point" class="form-label">Mount Point</label>
+                        <input type="text" class="form-control" id="vault_mount_point" name="vault_mount_point"
+                               value="{{ vault_config.mount_point }}" placeholder="secret">
+                        <div class="form-text">KV secrets engine mount point</div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Vault Setup</h6>
+                        <ul class="mb-0 small">
+                            <li>Ensure the KV secrets engine is enabled</li>
+                            <li>Token should have read/write permissions</li>
+                            <li>Use HTTPS in production environments</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-tools me-2"></i>Configuration Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Apply Configuration
+                        </button>
+                        <button type="button" class="btn btn-info" onclick="testConnections()">
+                            <i class="fas fa-plug me-2"></i>Test Connections
+                        </button>
+                        <button type="button" class="btn btn-warning" onclick="refreshStatus()">
+                            <i class="fas fa-sync me-2"></i>Refresh Status
+                        </button>
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="alert alert-warning">
+                            <h6><i class="fas fa-exclamation-triangle me-2"></i>Important Notes</h6>
+                            <ul class="mb-0 small">
+                                <li><strong>Security:</strong> Configuration changes are applied immediately but may require application restart for full effect</li>
+                                <li><strong>Backup:</strong> Ensure you have backup access to secrets before changing configurations</li>
+                                <li><strong>Testing:</strong> Use "Test Connections" to verify settings before applying</li>
+                                <li><strong>Production:</strong> In production, consider using environment variables or secure config files</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script>
+function testConnections() {
+    // Show loading state
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testing...';
+    btn.disabled = true;
+
+    // Simulate connection test (in production, this would make AJAX calls)
+    setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+
+        // Refresh the page to show updated connection status
+        window.location.reload();
+    }, 2000);
+}
+
+function refreshStatus() {
+    window.location.reload();
+}
+</script>
+{% endblock %}

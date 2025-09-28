@@ -1,10 +1,22 @@
 {
-    "mcpServers": {
-      "playwright": {
-        "command": "npx",
-        "args": [
-          "@playwright/mcp@latest"
-        ]
-      }
+  "version": "1",
+  "server": {
+    "name": "gkg",
+    "description": "GitLab Knowledge Graph MCP",
+    "capabilities": {
+      "resources": true,
+      "prompts": true,
+      "tools": true
     }
+  },
+  "tools": {
+    "include": ["*"],
+    "exclude": []
+  },
+  "disabled_tools": [],
+  "permissions": {
+    "allow_network": true,
+    "allow_fs_read": false,
+    "allow_fs_write": false
   }
+}

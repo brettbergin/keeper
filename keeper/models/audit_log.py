@@ -59,11 +59,11 @@ class AuditLog(BaseModel):
     resource_type = Column(
         String(50), nullable=False, index=True
     )  # secret, user, environment
-    resource_id = Column(Integer, nullable=True, index=True)
+    resource_id = Column(String(36), nullable=True, index=True)
     resource_name = Column(String(255), nullable=True, index=True)
 
     # User and session information
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     username = Column(String(100), nullable=True)  # For cases where user is deleted
     session_id = Column(String(255), nullable=True)
     ip_address = Column(String(45), nullable=True)  # IPv6 compatible
@@ -83,7 +83,7 @@ class AuditLog(BaseModel):
     environment_name = Column(String(100), nullable=True)
 
     # Secret-specific information (when applicable)
-    secret_id = Column(Integer, ForeignKey("secrets.id"), nullable=True, index=True)
+    secret_id = Column(String(36), ForeignKey("secrets.id"), nullable=True, index=True)
     secret_version = Column(Integer, nullable=True)
 
     # Relationships
@@ -133,15 +133,15 @@ class AuditLog(BaseModel):
         action: AuditAction,
         result: AuditResult,
         resource_type: str,
-        resource_id: Optional[int] = None,
+        resource_id: Optional[Any] = None,
         resource_name: Optional[str] = None,
-        user_id: Optional[int] = None,
+        user_id: Optional[Any] = None,
         username: Optional[str] = None,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
         error_message: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None,
-        secret_id: Optional[int] = None,
+        secret_id: Optional[Any] = None,
         secret_version: Optional[int] = None,
         environment_name: Optional[str] = None,
         request_method: Optional[str] = None,
@@ -155,14 +155,14 @@ class AuditLog(BaseModel):
             action=action,
             result=result,
             resource_type=resource_type,
-            resource_id=resource_id,
+            resource_id=str(resource_id) if resource_id is not None else None,
             resource_name=resource_name,
-            user_id=user_id,
+            user_id=str(user_id) if user_id is not None else None,
             username=username,
             ip_address=ip_address,
             user_agent=user_agent,
             error_message=error_message,
-            secret_id=secret_id,
+            secret_id=str(secret_id) if secret_id is not None else None,
             secret_version=secret_version,
             environment_name=environment_name,
             request_method=request_method,
@@ -186,7 +186,7 @@ class AuditLog(BaseModel):
         action: AuditAction,
         result: AuditResult,
         secret,
-        user_id: Optional[int] = None,
+        user_id: Optional[Any] = None,
         username: Optional[str] = None,
         ip_address: Optional[str] = None,
         error_message: Optional[str] = None,

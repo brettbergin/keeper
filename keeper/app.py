@@ -5,13 +5,44 @@ import logging
 import logging.handlers
 import os
 import time
+import uuid
 from pathlib import Path
 
 from flask import Flask, g, request
 from flask_wtf.csrf import CSRFProtect
+from werkzeug.routing import BaseConverter, ValidationError
+
+# Load environment variables from .env file BEFORE importing config
+try:
+    from dotenv import load_dotenv
+
+    # Load .env file from the project root
+    env_path = Path(__file__).parent.parent / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"📄 Loaded environment variables from {env_path}")
+    else:
+        print(f"⚠️  No .env file found at {env_path}")
+except ImportError:
+    print("⚠️  python-dotenv not installed, .env file will not be loaded")
 
 from .config import config
 from .models import db
+
+
+class UUIDConverter(BaseConverter):
+    """Custom URL converter for UUID parameters."""
+
+    def to_python(self, value):
+        """Convert URL string to UUID object."""
+        try:
+            return uuid.UUID(value)
+        except ValueError:
+            raise ValidationError(f"Invalid UUID: {value}")
+
+    def to_url(self, value):
+        """Convert UUID object to URL string."""
+        return str(value)
 
 
 class JSONFormatter(logging.Formatter):
@@ -219,6 +250,9 @@ def create_app(config_name=None):
 
     app = Flask(__name__)
     app.config.from_object(config[config_name])
+
+    # Register custom URL converters
+    app.url_map.converters["uuid"] = UUIDConverter
 
     # Setup logging first, before any other operations
     setup_logging(app)

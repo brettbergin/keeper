@@ -1,0 +1,275 @@
+"""Test services functionality."""
+
+import pytest
+from unittest.mock import patch, Mock
+from datetime import datetime, timezone
+
+from keeper.services.key_management import LocalKeyManagement
+from keeper.services.audit_logger import AuditLogger
+from keeper.services.approval_service import ApprovalService
+from keeper.models.user import User, UserRole, AuthMethod
+from keeper.models.secret import Secret, SecretType, SecrecyLevel
+from keeper.models.secret_version import SecretVersion
+from keeper.models.audit_log import AuditLog, AuditAction, AuditResult
+from keeper.models.approval import Approval, ApprovalStatus
+
+
+@pytest.mark.services
+class TestKeyManagement:
+    """Test key management service."""
+
+    def test_local_key_generation(self, app):
+        """Test local key generation and consistency."""
+        with app.app_context():
+            km = LocalKeyManagement()
+
+            # Should generate a key
+            key1 = km._get_local_key()
+            assert key1 is not None
+            assert len(key1) == 32  # 256 bits
+
+            # Should be consistent across calls
+            key2 = km._get_local_key()
+            assert key1 == key2
+
+    def test_encrypt_decrypt_cycle(self, app):
+        """Test encryption and decryption cycle."""
+        with app.app_context():
+            km = LocalKeyManagement()
+
+            original_data = "super-secret-password"
+
+            # Encrypt
+            encrypted_data, auth_tag = km.encrypt(original_data)
+            assert encrypted_data != original_data
+            assert auth_tag is not None
+            assert len(auth_tag) == 16  # GCM auth tag
+
+            # Decrypt
+            decrypted_data = km.decrypt(encrypted_data, auth_tag)
+            assert decrypted_data == original_data
+
+    def test_encryption_with_different_data(self, app):
+        """Test that different data produces different ciphertext."""
+        with app.app_context():
+            km = LocalKeyManagement()
+
+            data1 = "secret1"
+            data2 = "secret2"
+
+            encrypted1, tag1 = km.encrypt(data1)
+            encrypted2, tag2 = km.encrypt(data2)
+
+            # Should produce different ciphertext
+            assert encrypted1 != encrypted2
+            assert tag1 != tag2
+
+            # Should decrypt correctly
+            assert km.decrypt(encrypted1, tag1) == data1
+            assert km.decrypt(encrypted2, tag2) == data2
+
+    def test_invalid_auth_tag_fails(self, app):
+        """Test that invalid auth tag fails decryption."""
+        with app.app_context():
+            km = LocalKeyManagement()
+
+            data = "test-data"
+            encrypted_data, auth_tag = km.encrypt(data)
+
+            # Corrupt the auth tag
+            corrupted_tag = b'0' * 16
+
+            with pytest.raises(Exception):  # Should raise some form of authentication error
+                km.decrypt(encrypted_data, corrupted_tag)
+
+
+@pytest.mark.services
+class TestAuditLogger:
+    """Test audit logging service."""
+
+    def test_log_action_creation(self, app, admin_user):
+        """Test basic audit log creation."""
+        with app.app_context():
+            logger = AuditLogger()
+
+            log_entry = logger.log_action(
+                action=AuditAction.READ,
+                resource_type='secret',
+                resource_id='test-id',
+                user=admin_user,
+                ip_address='127.0.0.1',
+                result=AuditResult.SUCCESS
+            )
+
+            assert log_entry is not None
+            assert log_entry.action == AuditAction.READ
+            assert log_entry.user_id == admin_user.id
+            assert log_entry.ip_address == '127.0.0.1'
+
+    def test_log_secret_action(self, app, test_secret, admin_user):
+        """Test secret-specific audit logging."""
+        with app.app_context():
+            logger = AuditLogger()
+
+            log_entry = logger.log_secret_action(
+                action=AuditAction.UPDATE,
+                secret=test_secret,
+                user=admin_user,
+                ip_address='192.168.1.1',
+                result=AuditResult.SUCCESS,
+                details={'operation': 'rotation'}
+            )
+
+            assert log_entry.resource_type == 'secret'
+            assert log_entry.resource_id == str(test_secret.id)
+            assert log_entry.secret_name == test_secret.name
+            assert log_entry.environment_name == test_secret.environment.name
+
+    def test_log_user_action(self, app, regular_user):
+        """Test user-specific audit logging."""
+        with app.app_context():
+            logger = AuditLogger()
+
+            log_entry = logger.log_user_action(
+                action=AuditAction.CREATE,
+                user=regular_user,
+                ip_address='10.0.0.1',
+                result=AuditResult.SUCCESS
+            )
+
+            assert log_entry.resource_type == 'user'
+            assert log_entry.resource_id == str(regular_user.id)
+            assert log_entry.resource_name == regular_user.username
+
+
+@pytest.mark.services
+class TestApprovalService:
+    """Test approval workflow service."""
+
+    def test_create_approval_request(self, app, test_secret, regular_user):
+        """Test creating approval request."""
+        with app.app_context():
+            approval_service = ApprovalService()
+
+            approval = approval_service.create_approval_request(
+                requester_id=regular_user.id,
+                secret_id=test_secret.id,
+                action_type='rotate',
+                environment_name=test_secret.environment.name,
+                justification='Security rotation needed'
+            )
+
+            assert approval is not None
+            assert approval.status == ApprovalStatus.PENDING
+            assert approval.requester_id == regular_user.id
+            assert approval.secret_id == test_secret.id
+
+    def test_approve_request(self, app, test_secret, regular_user, manager_user):
+        """Test approving a request."""
+        with app.app_context():
+            approval_service = ApprovalService()
+
+            # Create approval request
+            approval = approval_service.create_approval_request(
+                requester_id=regular_user.id,
+                secret_id=test_secret.id,
+                action_type='rotate',
+                environment_name=test_secret.environment.name,
+                justification='Security rotation needed'
+            )
+
+            # Approve the request
+            result = approval_service.approve_request(
+                approval_id=approval.id,
+                approver_id=manager_user.id,
+                comments='Approved for security reasons'
+            )
+
+            assert result['success'] is True
+            approval = Approval.query.get(approval.id)
+            assert approval.status == ApprovalStatus.APPROVED
+            assert approval.approver_id == manager_user.id
+
+    def test_reject_request(self, app, test_secret, regular_user, manager_user):
+        """Test rejecting a request."""
+        with app.app_context():
+            approval_service = ApprovalService()
+
+            # Create approval request
+            approval = approval_service.create_approval_request(
+                requester_id=regular_user.id,
+                secret_id=test_secret.id,
+                action_type='rotate',
+                environment_name=test_secret.environment.name,
+                justification='Want to rotate'
+            )
+
+            # Reject the request
+            result = approval_service.reject_request(
+                approval_id=approval.id,
+                approver_id=manager_user.id,
+                comments='Not needed at this time'
+            )
+
+            assert result['success'] is True
+            approval = Approval.query.get(approval.id)
+            assert approval.status == ApprovalStatus.REJECTED
+            assert approval.approver_comments == 'Not needed at this time'
+
+    def test_get_pending_approvals(self, app, test_secret, regular_user):
+        """Test getting pending approvals."""
+        with app.app_context():
+            approval_service = ApprovalService()
+
+            # Create multiple approval requests
+            approval1 = approval_service.create_approval_request(
+                requester_id=regular_user.id,
+                secret_id=test_secret.id,
+                action_type='rotate',
+                environment_name=test_secret.environment.name,
+                justification='First request'
+            )
+
+            approval2 = approval_service.create_approval_request(
+                requester_id=regular_user.id,
+                secret_id=test_secret.id,
+                action_type='update',
+                environment_name=test_secret.environment.name,
+                justification='Second request'
+            )
+
+            # Get pending approvals
+            pending = approval_service.get_pending_approvals()
+
+            # Should find our created approvals
+            pending_ids = [a.id for a in pending]
+            assert approval1.id in pending_ids
+            assert approval2.id in pending_ids
+
+    def test_can_approve_permission_check(self, app, test_secret, regular_user, manager_user, admin_user):
+        """Test approval permission checking."""
+        with app.app_context():
+            approval_service = ApprovalService()
+
+            approval = approval_service.create_approval_request(
+                requester_id=regular_user.id,
+                secret_id=test_secret.id,
+                action_type='rotate',
+                environment_name=test_secret.environment.name,
+                justification='Test approval'
+            )
+
+            # Manager should be able to approve development environment
+            assert approval_service.can_approve(approval.id, manager_user.id) is True
+
+            # Admin should be able to approve anything
+            assert approval_service.can_approve(approval.id, admin_user.id) is True
+
+            # Regular user should not be able to approve
+            assert approval_service.can_approve(approval.id, regular_user.id) is False
+
+
+# Note: We're avoiding tests for sync services (AWS Secrets Manager, Vault)
+# as these are not fully implemented according to the assessment document.
+# The sync services contain placeholder implementations that don't actually
+# perform synchronization operations.

@@ -57,6 +57,7 @@ def create_session(user: User, ip_address: Optional[str] = None) -> str:
     session["username"] = user.username
     session["user_role"] = user.role.value
     session["is_admin"] = user.role.value == "admin"
+    session["is_manager"] = user.role.value == "manager"
     session["session_token"] = session_token
 
     current_app.logger.info(

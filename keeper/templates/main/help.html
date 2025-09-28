@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Help - Keeper{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-question-circle me-2"></i>Help & Documentation</h1>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Getting Started -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-rocket me-2"></i>Getting Started</h5>
+            </div>
+            <div class="card-body">
+                <h6>New to Keeper?</h6>
+                <p>Follow these steps to get started with managing your secrets:</p>
+                <ol>
+                    <li><strong>Set up Environments:</strong> Create environments (development, staging, production) to organize your secrets</li>
+                    <li><strong>Create Secrets:</strong> Add your first secret with proper tags and metadata</li>
+                    <li><strong>Configure Sync:</strong> Set up synchronization with external services like AWS or Vault</li>
+                    <li><strong>Manage Access:</strong> Invite team members and configure appropriate permissions</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Common Tasks -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Common Tasks</h5>
+            </div>
+            <div class="card-body">
+                <div class="accordion" id="helpAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="secretsHelp">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSecrets">
+                                <i class="fas fa-lock me-2"></i>Managing Secrets
+                            </button>
+                        </h2>
+                        <div id="collapseSecrets" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body">
+                                <ul>
+                                    <li><strong>Create Secret:</strong> Navigate to Secrets → New Secret to add a new secret</li>
+                                    <li><strong>Edit Secret:</strong> Click on any secret to view details and edit values</li>
+                                    <li><strong>Rotate Secret:</strong> Use the rotate button to generate new values automatically</li>
+                                    <li><strong>Delete Secret:</strong> Remove secrets from the detail page (requires confirmation)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="environmentsHelp">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEnvironments">
+                                <i class="fas fa-server me-2"></i>Managing Environments
+                            </button>
+                        </h2>
+                        <div id="collapseEnvironments" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body">
+                                <ul>
+                                    <li><strong>Create Environment:</strong> Set up new environments to organize secrets by deployment stage</li>
+                                    <li><strong>Configure Sync:</strong> Connect environments to external secret stores (AWS, Vault, etc.)</li>
+                                    <li><strong>Environment Types:</strong> Mark environments as production or non-production for safety</li>
+                                    <li><strong>Color Coding:</strong> Use colors and icons to visually distinguish environments</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="syncHelp">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSync">
+                                <i class="fas fa-sync me-2"></i>Synchronization
+                            </button>
+                        </h2>
+                        <div id="collapseSync" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body">
+                                <ul>
+                                    <li><strong>AWS Secrets Manager:</strong> Sync secrets to AWS using IAM credentials</li>
+                                    <li><strong>HashiCorp Vault:</strong> Connect to Vault instances for secret storage</li>
+                                    <li><strong>Manual Sync:</strong> Trigger synchronization manually from environment pages</li>
+                                    <li><strong>Auto Sync:</strong> Configure automatic synchronization schedules</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="securityHelp">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSecurity">
+                                <i class="fas fa-shield-alt me-2"></i>Security & Permissions
+                            </button>
+                        </h2>
+                        <div id="collapseSecurity" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div class="accordion-body">
+                                <ul>
+                                    <li><strong>User Roles:</strong> Admin, Manager, and User roles with different permission levels</li>
+                                    <li><strong>Approval Workflows:</strong> Multi-stage approvals for sensitive operations</li>
+                                    <li><strong>Audit Logs:</strong> Complete history of all actions for compliance</li>
+                                    <li><strong>Encryption:</strong> All secrets are encrypted at rest and in transit</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Troubleshooting -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-wrench me-2"></i>Troubleshooting</h5>
+            </div>
+            <div class="card-body">
+                <h6>Common Issues</h6>
+                <dl>
+                    <dt>Sync Failed</dt>
+                    <dd>Check your credentials and network connectivity to the external service. Verify permissions in the audit logs.</dd>
+
+                    <dt>Permission Denied</dt>
+                    <dd>Contact your administrator to review your user permissions. Some actions require higher privilege levels.</dd>
+
+                    <dt>Secret Not Found</dt>
+                    <dd>Verify the secret exists and you have access to the appropriate environment. Check if the secret was recently deleted.</dd>
+
+                    <dt>Login Issues</dt>
+                    <dd>Use the demo login system for development, or contact your administrator for database authentication setup.</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Quick Links -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-external-link-alt me-2"></i>Quick Links</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if session.user_id %}
+                    <a href="{{ url_for('secrets.create') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Create New Secret
+                    </a>
+                    <a href="{{ url_for('environments.create') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-server me-2"></i>Create Environment
+                    </a>
+                    <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt me-2"></i>Login
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Support -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-life-ring me-2"></i>Need More Help?</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    Can't find what you're looking for? Our support team is ready to help.
+                </p>
+                <div class="d-grid gap-2">
+                    <a href="mailto:support@keeper.com" class="btn btn-outline-primary">
+                        <i class="fas fa-envelope me-2"></i>Email Support
+                    </a>
+                    <a href="{{ url_for('main.about') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-info-circle me-2"></i>About Keeper
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-heartbeat me-2"></i>System Status</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Keeper Service</span>
+                    <span class="badge bg-success">Online</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Database</span>
+                    <span class="badge bg-success">Connected</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>External Services</span>
+                    <span class="badge bg-warning">Checking</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

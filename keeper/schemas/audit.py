@@ -1,5 +1,6 @@
 """Pydantic schemas for audit log operations."""
 
+import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -11,13 +12,13 @@ from ..models.audit_log import AuditAction, AuditResult
 class AuditLogResponse(BaseModel):
     """Schema for audit log response data."""
 
-    id: int
+    id: uuid.UUID
     action: AuditAction
     result: AuditResult
     resource_type: str
-    resource_id: Optional[int]
+    resource_id: Optional[str]
     resource_name: Optional[str]
-    user_id: Optional[int]
+    user_id: Optional[uuid.UUID]
     username: Optional[str]
     session_id: Optional[str]
     ip_address: Optional[str]

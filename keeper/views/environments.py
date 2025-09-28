@@ -95,7 +95,7 @@ def create():
     return render_template("environments/create.html")
 
 
-@environments_bp.route("/<int:id>")
+@environments_bp.route("/<uuid:id>")
 @require_auth
 def detail(id):
     """Show environment details."""
@@ -183,7 +183,7 @@ def detail(id):
     )
 
 
-@environments_bp.route("/<int:id>/edit", methods=["GET", "POST"])
+@environments_bp.route("/<uuid:id>/edit", methods=["GET", "POST"])
 @require_admin
 def edit(id):
     """Edit an environment."""
@@ -241,7 +241,7 @@ def edit(id):
     return render_template("environments/edit.html", environment=environment)
 
 
-@environments_bp.route("/<int:id>/sync", methods=["POST"])
+@environments_bp.route("/<uuid:id>/sync", methods=["POST"])
 @require_admin
 def sync(id):
     """Sync all secrets in an environment to configured backends."""
@@ -310,7 +310,7 @@ def sync(id):
         return {"success": False, "message": f"Sync failed: {str(e)}"}
 
 
-@environments_bp.route("/<int:id>/delete", methods=["POST"])
+@environments_bp.route("/<uuid:id>/delete", methods=["POST"])
 @require_admin
 def delete(id):
     """Delete an environment."""

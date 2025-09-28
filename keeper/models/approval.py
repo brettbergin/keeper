@@ -1,6 +1,6 @@
 """Approval workflow model for managing secret operations that require approval."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -14,10 +14,10 @@ from sqlalchemy import (
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import (
     ForeignKey,
-    Integer,
     String,
     Text,
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from .base import BaseModel
@@ -58,12 +58,12 @@ class Approval(BaseModel):
     )
 
     # Requester information
-    requester_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    requester_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     requester_username = Column(String(100), nullable=False)  # Cached for audit
 
     # Target resource information
     resource_type = Column(String(50), nullable=False)  # secret, environment, etc.
-    resource_id = Column(Integer, nullable=True)
+    resource_id = Column(UUID(as_uuid=True), nullable=True)
     resource_name = Column(String(255), nullable=False)
     environment_name = Column(String(100), nullable=False)
 
@@ -72,7 +72,7 @@ class Approval(BaseModel):
     request_details = Column(JSON, nullable=True)  # Additional context
 
     # Approval information
-    approver_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approver_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     approver_username = Column(String(100), nullable=True)
     approved_at = Column(DateTime, nullable=True)
     approval_comment = Column(Text, nullable=True)
@@ -175,7 +175,18 @@ class Approval(BaseModel):
 
     def set_request_details(self, details: Dict[str, Any]) -> None:
         """Set request details from a dictionary."""
-        self.request_details = details
+        import json
+        import uuid
+
+        # Convert UUIDs to strings for JSON serialization
+        serializable_details = {}
+        for key, value in details.items():
+            if isinstance(value, uuid.UUID):
+                serializable_details[key] = str(value)
+            else:
+                serializable_details[key] = value
+
+        self.request_details = serializable_details
 
     @classmethod
     def create_rotation_approval(
@@ -200,7 +211,7 @@ class Approval(BaseModel):
             resource_name=secret_name,
             environment_name=environment_name,
             request_reason=reason,
-            expires_at=datetime.utcnow() + datetime.timedelta(hours=expires_in_hours),
+            expires_at=datetime.utcnow() + timedelta(hours=expires_in_hours),
         )
 
         if rotation_details:

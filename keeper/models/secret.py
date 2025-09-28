@@ -16,6 +16,7 @@ from sqlalchemy import (
     String,
     Text,
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from .base import BaseModel
@@ -72,7 +73,9 @@ class Secret(BaseModel):
 
     # Service and environment association
     service_name = Column(String(255), nullable=True, index=True)
-    environment_id = Column(Integer, ForeignKey("environments.id"), nullable=False)
+    environment_id = Column(
+        UUID(as_uuid=True), ForeignKey("environments.id"), nullable=False
+    )
 
     # Secret lifecycle
     expires_at = Column(DateTime, nullable=True)
@@ -96,14 +99,14 @@ class Secret(BaseModel):
 
     # Vault specific
     vault_path = Column(String(512), nullable=True)
-    vault_version = Column(Integer, nullable=True)
+    vault_version = Column(String(64), nullable=True)
 
     # Metadata
     tags = Column(Text, nullable=True)  # JSON string of tags
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Foreign keys
-    creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
     # Relationships
     environment = relationship("Environment", back_populates="secrets")
@@ -182,8 +185,22 @@ class Secret(BaseModel):
         """Get the full name including environment."""
         return f"{self.environment.name}/{self.name}"
 
-    def get_aws_secret_name(self) -> str:
+    def get_aws_secret_name(self, version_number: Optional[int] = None) -> str:
         """Get the AWS Secrets Manager secret name."""
+        if version_number is not None:
+            # Return versioned name for specific version
+            return self.environment.get_aws_secret_name(
+                f"{self.name}/v{version_number}"
+            )
+
+        # For current version, use the current version number
+        current_version = self.current_version
+        if current_version:
+            return self.environment.get_aws_secret_name(
+                f"{self.name}/v{current_version.version_number}"
+            )
+
+        # Fallback for secrets without versions (backwards compatibility)
         return self.environment.get_aws_secret_name(self.name)
 
     def get_vault_path(self) -> str:
@@ -244,14 +261,14 @@ class Secret(BaseModel):
 
     @classmethod
     def find_by_name_and_environment(
-        cls, name: str, environment_id: int
+        cls, name: str, environment_id: str
     ) -> Optional["Secret"]:
         """Find secret by name and environment."""
         return cls.query.filter_by(name=name, environment_id=environment_id).first()
 
     @classmethod
     def find_by_service(
-        cls, service_name: str, environment_id: Optional[int] = None
+        cls, service_name: str, environment_id: Optional[str] = None
     ) -> List["Secret"]:
         """Find secrets by service name."""
         query = cls.query.filter_by(service_name=service_name, is_active=True)
